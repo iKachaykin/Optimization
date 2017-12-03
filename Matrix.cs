@@ -3,8 +3,8 @@ namespace SimplexMethod
 {
     public class Matrix : ICloneable
     {
-        protected const double Epsilon = 1E-8;
-        protected double[,] matrix;
+        private const double Epsilon = 1E-8;
+        private double[,] matrix;
         public int FirstDimension { get; private set; }
         public int SecondDimension { get; private set; }
         public virtual int Dimension { get => FirstDimension * SecondDimension; }
@@ -326,21 +326,11 @@ namespace SimplexMethod
                 {
                     if (Math.Abs(thisCopy.matrix[mainDiagIndex, mainDiagIndex]) < Epsilon)
                     {
-                        absMaxInRowIndex = mainDiagIndex;
-                        for (int j = mainDiagIndex + 1; j < dimension; j++)
-                        {
-                            if (Math.Abs(thisCopy.matrix[mainDiagIndex, j]) > Math.Abs(thisCopy.matrix[mainDiagIndex, absMaxInRowIndex]))
-                                absMaxInRowIndex = j;
-                        }
+                        absMaxInRowIndex = thisCopy.FindAbsMaxInRowPosition(mainDiagIndex, mainDiagIndex, dimension);
                         if (Math.Abs(thisCopy.matrix[mainDiagIndex, absMaxInRowIndex]) < Epsilon)
                             return 0;
                         transp++;
-                        for (int i = 0; i < dimension; i++)
-                        {
-                            tmp = thisCopy.matrix[i, absMaxInRowIndex];
-                            thisCopy.matrix[i, absMaxInRowIndex] = thisCopy.matrix[i, mainDiagIndex];
-                            thisCopy.matrix[i, mainDiagIndex] = tmp;
-                        }
+                        thisCopy.SwapColumns(absMaxInRowIndex, mainDiagIndex);
                     }
                     for (int i = mainDiagIndex + 1; i < dimension; i++)
                     {
@@ -364,30 +354,16 @@ namespace SimplexMethod
                     throw new InvalidOperationException();
                 int dimension = FirstDimension;
                 double tmp = 0;
-                Matrix res = new Matrix(dimension, dimension), thisCopy = new Matrix(this);
-                for (int i = 0; i < dimension; i++)
-                    res.matrix[i, i] = 1;
+                Matrix res = E(dimension), thisCopy = new Matrix(this);
                 for (int mainDiagIndex = 0, absMaxInColIndex; mainDiagIndex < dimension; mainDiagIndex++)
                 {
                     if (Math.Abs(thisCopy.matrix[mainDiagIndex, mainDiagIndex]) < Epsilon)
                     {
-                        absMaxInColIndex = mainDiagIndex;
-                        for (int i = mainDiagIndex + 1; i < dimension; i++)
-                        {
-                            if (Math.Abs(thisCopy.matrix[i, mainDiagIndex]) > Math.Abs(thisCopy.matrix[absMaxInColIndex, mainDiagIndex]))
-                                absMaxInColIndex = i;
-                        }
+                        absMaxInColIndex = thisCopy.FindAbsMaxInColumnPosition(mainDiagIndex, mainDiagIndex, dimension);
                         if (Math.Abs(thisCopy.matrix[absMaxInColIndex, mainDiagIndex]) < Epsilon)
                             throw new InvalidOperationException();
-                        for (int j = 0; j < dimension; j++)
-                        {
-                            tmp = thisCopy.matrix[absMaxInColIndex, j];
-                            thisCopy.matrix[absMaxInColIndex, j] = thisCopy.matrix[mainDiagIndex, j];
-                            thisCopy.matrix[mainDiagIndex, j] = tmp;
-                            tmp = res.matrix[absMaxInColIndex, j];
-                            res.matrix[absMaxInColIndex, j] = res.matrix[mainDiagIndex, j];
-                            res.matrix[mainDiagIndex, j] = tmp;
-                        }
+                        thisCopy.SwapRows(absMaxInColIndex, mainDiagIndex);
+                        res.SwapRows(absMaxInColIndex, mainDiagIndex);
                     }
                     for (int i = mainDiagIndex + 1; i < dimension; i++)
                     {
@@ -424,6 +400,42 @@ namespace SimplexMethod
             }
         }
 
+        public int Rank
+        {
+            get
+            {
+                int res = 0;
+                double tmp = 0;
+                Matrix thisCopy = new Matrix(this);
+                for (int mainDiagIndex = 0, absMaxInRowIndex, lastRowIndex = FirstDimension - 1; 
+                     mainDiagIndex < Math.Min(lastRowIndex + 1, SecondDimension); mainDiagIndex++)
+                {
+                    Console.WriteLine(thisCopy);
+                    if(Math.Abs(thisCopy[mainDiagIndex, mainDiagIndex]) < Epsilon)
+                    {
+                        absMaxInRowIndex = thisCopy.FindAbsMaxInRowPosition(mainDiagIndex, mainDiagIndex, SecondDimension);
+                        if (Math.Abs(thisCopy.matrix[mainDiagIndex, absMaxInRowIndex]) < Epsilon)
+                        {
+                            thisCopy.SwapRows(mainDiagIndex, lastRowIndex);
+                            lastRowIndex--;
+                            mainDiagIndex--;
+                            continue;
+                        }
+                        else
+                            thisCopy.SwapColumns(mainDiagIndex, absMaxInRowIndex);
+                    }
+                    for (int i = mainDiagIndex + 1; i < FirstDimension; i++)
+                    {
+                        tmp = thisCopy.matrix[i, mainDiagIndex];
+                        for (int j = mainDiagIndex; j < SecondDimension; j++)
+                            thisCopy.matrix[i, j] -= thisCopy.matrix[mainDiagIndex, j] / thisCopy.matrix[mainDiagIndex, mainDiagIndex] * tmp;
+                    }
+                    res = mainDiagIndex + 1;
+                }
+                return res;
+            }
+        }
+
         public static Matrix NullMatrix(int FirstDimension = 2, int SecondDimension = 2) =>
         FirstDimension > 0 && SecondDimension > 0 ? new Matrix(FirstDimension, SecondDimension, 0.0) :
         throw new InvalidOperationException();
@@ -449,6 +461,67 @@ namespace SimplexMethod
                 if (mArray[i].FirstDimension != firstDim || mArray[i].SecondDimension != secondDim)
                     return false;
             return true;
+        }
+
+        public static Matrix E(int dimension)
+        {
+            Matrix res = new Matrix(dimension, dimension, 0);
+            for (int i = 0; i < dimension; i++)
+                res.matrix[i, i] = 1;
+            return res;
+        }
+
+        public static Matrix UniteVectors(params Vector[] vectors) => new Matrix(vectors);
+
+        private static void Swap(ref double a, ref double b) 
+        {
+            double tmp = a;
+            a = b;
+            b = tmp;
+        }
+
+        private void SwapColumns(int firstColumnIndex, int secondColumnIndex)
+        {
+            if (firstColumnIndex < 0 || firstColumnIndex >= matrix.GetLength(1) ||
+                secondColumnIndex < 0 || secondColumnIndex >= matrix.GetLength(1))
+                throw new IndexOutOfRangeException();
+            for (int i = 0; i < matrix.GetLength(0); i++)
+                Swap(ref matrix[i, firstColumnIndex], ref matrix[i, secondColumnIndex]);
+        }
+
+        private void SwapRows(int firstRowIndex, int secondRowIndex)
+        {
+            if (firstRowIndex < 0 || firstRowIndex >= matrix.GetLength(0) ||
+                secondRowIndex < 0 || secondRowIndex >= matrix.GetLength(0))
+                throw new IndexOutOfRangeException();
+            for (int j = 0; j < matrix.GetLength(1); j++)
+                Swap(ref matrix[firstRowIndex, j], ref matrix[secondRowIndex, j]);
+        }
+
+        private int FindAbsMaxInColumnPosition(int columnIndex, int start, int end)
+        {
+            if (columnIndex < 0 || columnIndex >= matrix.GetLength(1) ||
+                start < 0 || start >= matrix.GetLength(0) || start >= end ||
+                end <= 0 || end > matrix.GetLength(0))
+                throw new IndexOutOfRangeException();
+            int res = start;
+            for (int i = start + 1; i < end; i++)
+                if (Math.Abs(matrix[i, columnIndex]) > Math.Abs(matrix[res, columnIndex]))
+                    res = i;
+            return res;
+        }
+
+        private int FindAbsMaxInRowPosition(int rowIndex, int start, int end)
+        {
+            if (rowIndex < 0 || rowIndex >= matrix.GetLength(0) ||
+               start < 0 || start >= matrix.GetLength(1) || start >= end ||
+               end <= 0 || end > matrix.GetLength(1))
+                throw new IndexOutOfRangeException();
+            int res = start;
+            for (int j = start + 1; j < end; j++)
+                if (Math.Abs(matrix[rowIndex, j]) > Math.Abs(matrix[rowIndex, res]))
+                    res = j;
+            return res;
         }
     }
 }
