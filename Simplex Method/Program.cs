@@ -6,10 +6,19 @@ namespace SimplexMethod
     {
         public static void Main(string[] args)
         {
-            Matrix A = (Matrix.RandomMatrix(4, 4) * 20).Floor - Matrix.OnesMatrix(4, 4) * 10;
-            Console.WriteLine(Convert.ToString(A) + "\n\n");
-            Console.WriteLine(Convert.ToString(A.Reversed) + "\n\n");
-            Console.WriteLine(Convert.ToString(A * A.Reversed) + "\n\n");
+            bool isMax = true;
+            bool[] signArray = { true, true, true, false};
+            short[] relationArray = { 0, 1, 1, -1, -1 };
+            Matrix limitationMatrix = new Matrix(
+                new double[,]{{3, 3, -2, 0}, {0, -1, 2, -4}, {5, 0, 2, 0}, {3, -2, 0, 5}, {1, 3, 4, 0}});
+            Vector objectiveFunctionCoefficients = new Vector(new double[] {2, 7, -4, 3}),
+            limitationVector = new Vector(new double[]{15, 16, 25, 29, 18});
+            LinearProgrammingProblem currentProblem = 
+                new LinearProgrammingProblem(objectiveFunctionCoefficients, limitationMatrix, 
+                                             limitationVector, relationArray, 
+                                             signArray, isMax);
+            Console.WriteLine(currentProblem);
+            Console.WriteLine(currentProblem.EqualCanonicalProblem);
             Console.ReadKey();
         }
     }
