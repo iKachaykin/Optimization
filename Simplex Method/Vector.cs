@@ -1,5 +1,5 @@
 ﻿using System;
-
+using System.Collections.Generic;
 namespace SimplexMethod
 {
     public class Vector : ICloneable
@@ -24,12 +24,20 @@ namespace SimplexMethod
             vector = (double[])other.vector.Clone();
         }
 
-        public Vector(double[] vect)
+        public Vector(double[] vector)
         {
-            dimension = vect.Length;
+            dimension = vector.Length;
             this.vector = new double[dimension];
             for (int i = 0; i < dimension; i++)
-                this.vector[i] = vect[i];
+                this.vector[i] = vector[i];
+        }
+
+        public Vector(List<double> list)
+        {
+            dimension = list.Count;
+            vector = new double[dimension];
+            for (int i = 0; i < dimension; i++)
+                vector[i] = list[i];
         }
 
         public object Clone() => new Vector(this);
@@ -116,6 +124,10 @@ namespace SimplexMethod
 
         public static bool operator ==(Vector left, Vector right)
         {
+            if ((object)left == null && (object)right == null)
+                return true;
+            if ((object)left == null || (object)right == null)
+                return false;
             if (left.dimension != right.dimension)
                 return false;
             for (int i = 0; i < left.dimension; i++)
@@ -126,6 +138,10 @@ namespace SimplexMethod
 
         public static bool operator !=(Vector left, Vector right)
         {
+            if ((object)left == null && (object)right == null)
+                return false;
+            if ((object)left == null || (object)right == null)
+                return true;
             if (left.dimension != right.dimension)
                 return true;
             for (int i = 0; i < left.dimension; i++)
@@ -211,6 +227,98 @@ namespace SimplexMethod
                 Vector res = new Vector(this);
                 for (int i = 0; i < res.dimension; i++)
                     res.vector[i] = Math.Ceiling(res.vector[i]);
+                return res;
+            }
+        }
+
+        public Vector Abs
+        {
+            get
+            {
+                Vector res = new Vector(this);
+                for (int i = 0; i < res.Dimension; i++)
+                    if (res.vector[i] < 0)
+                        res.vector[i] = -res.vector[i];
+                return res;
+            }
+        }
+
+        public double Max
+        {
+            get
+            {
+                double res = vector[0];
+                for (int i = 1; i < vector.Length; i++)
+                    if (vector[i] > res)
+                        res = vector[i];
+                return res;
+            }
+        }
+
+        public double Min
+        {
+            get
+            {
+                double res = vector[0];
+                for (int i = 1; i < vector.Length; i++)
+                    if (vector[i] < res)
+                        res = vector[i];
+                return res;   
+            }
+        }
+
+        public int FirstMaxIndex
+        {
+            get
+            {
+                int res = 0;
+                for (int i = 1; i < vector.Length; i++)
+                    if (vector[i] - vector[res] > Epsilon)
+                        res = i;
+                return res;
+            }
+        }
+
+        public int FirstMinIndex
+        {
+            get
+            {
+                int res = 0;
+                for (int i = 1; i < vector.Length; i++)
+                    if (vector[i] - vector[res] < -Epsilon)
+                        res = i;
+                return res;
+            }
+        }
+
+        public int[] MaxIndexes
+        {
+            get
+            {
+                double max = Max;
+                List<int> tmpLst = new List<int>();
+                for (int i = 0; i < dimension; i++)
+                    if (Math.Abs(vector[i] - max) < Epsilon)
+                        tmpLst.Add(i);
+                int[] res = new int[tmpLst.Count];
+                for (int i = 0; i < res.Length; i++)
+                    res[i] = tmpLst[i];
+                return res;
+            }
+        }
+
+        public int[] MinIndexes
+        {
+            get
+            {
+                double min = Min;
+                List<int> tmpLst = new List<int>();
+                for (int i = 0; i < dimension; i++)
+                    if (Math.Abs(vector[i] - min) < Epsilon)
+                        tmpLst.Add(i);
+                int[] res = new int[tmpLst.Count];
+                for (int i = 0; i < res.Length; i++)
+                    res[i] = tmpLst[i];
                 return res;
             }
         }

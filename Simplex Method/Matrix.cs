@@ -5,15 +5,16 @@ namespace SimplexMethod
     {
         private const double Epsilon = 1E-8;
         private double[,] matrix;
+
+        public int Dimension { get => FirstDimension * SecondDimension; }
         public int FirstDimension { get; private set; }
         public int SecondDimension { get; private set; }
-        public virtual int Dimension { get => FirstDimension * SecondDimension; }
 
         public Matrix(int FirstDimension = 2, int SecondDimension = 2, double defaultVal = 0.0)
         {
             if (FirstDimension <= 0 || SecondDimension <= 0)
                 throw new InvalidOperationException();
-            this.FirstDimension = FirstDimension;
+            this.FirstDimension  = FirstDimension;
             this.SecondDimension = SecondDimension;
             matrix = new double[FirstDimension, SecondDimension];
             for (int i = 0; i < FirstDimension; i++)
@@ -164,6 +165,10 @@ namespace SimplexMethod
 
         public static bool operator ==(Matrix left, Matrix right)
         {
+            if ((object)left == null && (object)right == null)
+                return true;
+            if ((object)left == null || (object)right == null)
+                return false;
             if (left.FirstDimension != right.FirstDimension ||
                 left.SecondDimension != right.SecondDimension)
                 return false;
@@ -176,6 +181,10 @@ namespace SimplexMethod
 
         public static bool operator !=(Matrix left, Matrix right)
         {
+            if ((object)left == null && (object)right == null)
+                return false;
+            if ((object)left == null || (object)right == null)
+                return true;
             if (left.FirstDimension != right.FirstDimension ||
                 left.SecondDimension != right.SecondDimension)
                 return true;
@@ -410,7 +419,6 @@ namespace SimplexMethod
                 for (int mainDiagIndex = 0, absMaxInRowIndex, lastRowIndex = FirstDimension - 1; 
                      mainDiagIndex < Math.Min(lastRowIndex + 1, SecondDimension); mainDiagIndex++)
                 {
-                    Console.WriteLine(thisCopy);
                     if(Math.Abs(thisCopy[mainDiagIndex, mainDiagIndex]) < Epsilon)
                     {
                         absMaxInRowIndex = thisCopy.FindAbsMaxInRowPosition(mainDiagIndex, mainDiagIndex, SecondDimension);
@@ -434,6 +442,54 @@ namespace SimplexMethod
                 }
                 return res;
             }
+        }
+
+        public Vector GetRow(int index)
+        {
+            if (index < 0 || index >= FirstDimension)
+                throw new IndexOutOfRangeException();
+            Vector res = new Vector(SecondDimension);
+            for (int j = 0; j < SecondDimension; j++)
+                res[j] = matrix[index, j];
+            return res;
+        }
+
+        public Vector GetColumn(int index)
+        {
+            if (index < 0 || index >= SecondDimension)
+                throw new IndexOutOfRangeException();
+            Vector res = new Vector(FirstDimension);
+            for (int i = 0; i < FirstDimension; i++)
+                res[i] = matrix[i, index];
+            return res;
+        }
+
+        public Matrix GetRows(int start, int end = -1)
+        {
+            if (end == -1)
+                end = FirstDimension;
+            if (start < 0 || start >= FirstDimension || end <= 0 || 
+                end > FirstDimension || start >= end)
+                throw new IndexOutOfRangeException();
+            Matrix res = new Matrix(end - start, SecondDimension);
+            for (int iFirst = start, iSecond = 0; iFirst < end; iFirst++, iSecond++)
+                for (int j = 0; j < SecondDimension; j++)
+                    res[iSecond, j] = matrix[iFirst, j];
+            return res;
+        }
+
+        public Matrix GetColumns(int start, int end = -1)
+        {
+            if (end == -1)
+                end = SecondDimension;
+            if (start < 0 || start >= SecondDimension || end <= 0 ||
+                end > SecondDimension || start >= end)
+                throw new IndexOutOfRangeException();
+            Matrix res = new Matrix(FirstDimension, end - start);
+            for (int jFirst = start, jSecond = 0; jFirst < end; jFirst++, jSecond++)
+                for (int i = 0; i < FirstDimension; i++)
+                    res[i, jSecond] = matrix[i, jFirst];
+            return res;
         }
 
         public static Matrix NullMatrix(int FirstDimension = 2, int SecondDimension = 2) =>
