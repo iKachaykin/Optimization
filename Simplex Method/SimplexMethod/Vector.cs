@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+
 namespace SimplexMethod
 {
     public class Vector : ICloneable
@@ -40,7 +41,7 @@ namespace SimplexMethod
                 vector[i] = list[i];
         }
 
-        public object Clone() => new Vector(this);
+        public object Clone() { return new Vector(this); }
 
         public double this[int i]
         {
@@ -58,7 +59,23 @@ namespace SimplexMethod
             }
         }
 
-        public static Vector operator +(Vector v) => new Vector(v);
+        public Vector this[int[] indexes]
+        {
+            get
+            {
+                foreach(int index in indexes)
+                {
+                    if (index < 0 || index >= dimension)
+                        throw new IndexOutOfRangeException();
+                }
+                Vector res = new Vector(indexes.Length);
+                for (int i = 0; i < res.dimension; i++)
+                    res.vector[i] = vector[indexes[i]];
+                return res;
+            }
+        }
+
+        public static Vector operator +(Vector v) { return new Vector(v); }
 
         public static Vector operator -(Vector v)
         {
@@ -157,7 +174,7 @@ namespace SimplexMethod
             return v.vector[0];
         }
 
-        public static explicit operator Vector(double c) => new Vector(1, c);
+        public static explicit operator Vector(double c) { return new Vector(1, c); }
 
         public static explicit operator Matrix(Vector v)
         {
@@ -175,7 +192,7 @@ namespace SimplexMethod
             return this == v;
         }
 
-        public override int GetHashCode() => Convert.ToInt32(EuclidNorm);
+        public override int GetHashCode() { return Convert.ToInt32(EuclidNorm); }
 
         public override string ToString()
         {
@@ -194,9 +211,9 @@ namespace SimplexMethod
                     
         }
 
-        public double EuclidNorm { get => Math.Sqrt(this * this); }
+        public double EuclidNorm { get { return Math.Sqrt(this * this); } }
 
-        public int Dimension { get => dimension; }
+        public int Dimension { get { return dimension; } }
 
         public double Sum 
         {
@@ -340,11 +357,19 @@ namespace SimplexMethod
             return true;
         }
 
-        public static Vector NullVector(int dim = 16) => 
-        dim > 0 ? new Vector(dim, 0.0) : throw new InvalidOperationException();
+        public static Vector NullVector(int dim = 16)
+        {
+            if (dim <= 0)
+                throw new InvalidOperationException();
+            return new Vector(dim, 0.0);
+        }
 
-        public static Vector OnesVector(int dim = 16) => 
-        dim > 0 ? new Vector(dim, 1.0) : throw new InvalidOperationException();
+        public static Vector OnesVector(int dim = 16)
+        {
+            if (dim <= 0)
+                throw new InvalidOperationException();
+            return new Vector(dim, 1.0); 
+        }
 
         public static Vector UnitVector(int dim = 16, int index = 0)
         {

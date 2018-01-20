@@ -1,4 +1,5 @@
 ﻿using System;
+
 namespace SimplexMethod
 {
     public class Matrix : ICloneable
@@ -6,7 +7,7 @@ namespace SimplexMethod
         private const double Epsilon = 1E-8;
         private double[,] matrix;
 
-        public int Dimension { get => FirstDimension * SecondDimension; }
+        public int Dimension { get { return FirstDimension * SecondDimension; } }
         public int FirstDimension { get; private set; }
         public int SecondDimension { get; private set; }
 
@@ -14,7 +15,7 @@ namespace SimplexMethod
         {
             if (FirstDimension <= 0 || SecondDimension <= 0)
                 throw new InvalidOperationException();
-            this.FirstDimension  = FirstDimension;
+            this.FirstDimension = FirstDimension;
             this.SecondDimension = SecondDimension;
             matrix = new double[FirstDimension, SecondDimension];
             for (int i = 0; i < FirstDimension; i++)
@@ -46,10 +47,10 @@ namespace SimplexMethod
             for (int i = 0; i < FirstDimension; i++)
                 for (int j = 0; j < SecondDimension; j++)
                     matrix[i, j] = vectors[j][i];
-            
+
         }
 
-        public object Clone() => new Matrix(this);
+        public object Clone() { return new Matrix(this); }
 
         public double this[int i, int j]
         {
@@ -67,7 +68,7 @@ namespace SimplexMethod
             }
         }
 
-        public static Matrix operator +(Matrix matrix) => new Matrix(matrix);
+        public static Matrix operator +(Matrix matrix) { return new Matrix(matrix); }
 
         public static Matrix operator -(Matrix matrix)
         {
@@ -214,10 +215,14 @@ namespace SimplexMethod
             else throw new InvalidOperationException();
         }
 
-        public static explicit operator double(Matrix A) =>
-        A.Dimension == 1 ? A.matrix[0, 0] : throw new InvalidOperationException();
+        public static explicit operator double(Matrix A)
+        {
+            if (A.Dimension != 1)
+                throw new InvalidOperationException();
+            return A.matrix[0, 0];
+        }
 
-        public static explicit operator Matrix(double c) => new Matrix(1, 1, c);
+        public static explicit operator Matrix(double c) { return new Matrix(1, 1, c); }
 
         public override bool Equals(object obj)
         {
@@ -245,7 +250,7 @@ namespace SimplexMethod
                 {
                     delt = Math.Abs(matrix[i, j] - Math.Round(matrix[i, j]));
                     res += delt < Epsilon ?
-                        Convert.ToString(Convert.ToInt32(Math.Round(matrix[i, j]))) + "\t\t\t":
+                        Convert.ToString(Convert.ToInt32(Math.Round(matrix[i, j]))) + "\t\t\t" :
                                Convert.ToString(matrix[i, j]) + "\t";
                 }
                 if (i == 0)
@@ -405,7 +410,7 @@ namespace SimplexMethod
                     }
                 }
                 return res;
-                
+
             }
         }
 
@@ -416,10 +421,10 @@ namespace SimplexMethod
                 int res = 0;
                 double tmp = 0;
                 Matrix thisCopy = new Matrix(this);
-                for (int mainDiagIndex = 0, absMaxInRowIndex, lastRowIndex = FirstDimension - 1; 
+                for (int mainDiagIndex = 0, absMaxInRowIndex, lastRowIndex = FirstDimension - 1;
                      mainDiagIndex < Math.Min(lastRowIndex + 1, SecondDimension); mainDiagIndex++)
                 {
-                    if(Math.Abs(thisCopy[mainDiagIndex, mainDiagIndex]) < Epsilon)
+                    if (Math.Abs(thisCopy[mainDiagIndex, mainDiagIndex]) < Epsilon)
                     {
                         absMaxInRowIndex = thisCopy.FindAbsMaxInRowPosition(mainDiagIndex, mainDiagIndex, SecondDimension);
                         if (Math.Abs(thisCopy.matrix[mainDiagIndex, absMaxInRowIndex]) < Epsilon)
@@ -468,7 +473,7 @@ namespace SimplexMethod
         {
             if (end == -1)
                 end = FirstDimension;
-            if (start < 0 || start >= FirstDimension || end <= 0 || 
+            if (start < 0 || start >= FirstDimension || end <= 0 ||
                 end > FirstDimension || start >= end)
                 throw new IndexOutOfRangeException();
             Matrix res = new Matrix(end - start, SecondDimension);
@@ -492,13 +497,19 @@ namespace SimplexMethod
             return res;
         }
 
-        public static Matrix NullMatrix(int FirstDimension = 2, int SecondDimension = 2) =>
-        FirstDimension > 0 && SecondDimension > 0 ? new Matrix(FirstDimension, SecondDimension, 0.0) :
-        throw new InvalidOperationException();
+        public static Matrix NullMatrix(int FirstDimension = 2, int SecondDimension = 2)
+        {
+            if (FirstDimension <= 0 || SecondDimension <= 0)
+                throw new InvalidOperationException();
+            return new Matrix(FirstDimension, SecondDimension, 0.0);
+        }
 
-        public static Matrix OnesMatrix(int FirstDimension = 2, int SecondDimension = 2) =>
-        FirstDimension > 0 && SecondDimension > 0 ? new Matrix(FirstDimension, SecondDimension, 1.0) :
-        throw new InvalidOperationException();
+        public static Matrix OnesMatrix(int FirstDimension = 2, int SecondDimension = 2)
+        {
+            if (FirstDimension <= 0 || SecondDimension <= 0)
+                throw new InvalidOperationException();
+            return new Matrix(FirstDimension, SecondDimension, 1.0);
+        }
 
         public static Matrix RandomMatrix(int FirstDimension = 2, int SecondDimension = 2)
         {
@@ -527,7 +538,7 @@ namespace SimplexMethod
             return res;
         }
 
-        public static Matrix UniteVectors(params Vector[] vectors) => new Matrix(vectors);
+        public static Matrix UniteVectors(params Vector[] vectors) { return new Matrix(vectors); }
 
         private static void Swap(ref double a, ref double b) 
         {
