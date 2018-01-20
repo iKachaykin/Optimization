@@ -22,8 +22,10 @@ namespace SimplexMethod
         private Vector          solution;
         private char            variableChar;
 
-        public List<string[,]> allSimplexTables;
-        public short Solvability { get; private set; }
+        public List<string[,]>  AllSimplexTables { get; private set; }
+        public short            Solvability { get; private set; }
+
+        #region Constructors --- Конструкторы
 
         public LinearProgrammingProblem
         (Matrix limitationMatrix, Vector limitationVector, 
@@ -35,7 +37,7 @@ namespace SimplexMethod
                                 objectiveFunctionCoefficients,relationArray, signArray))
                 throw new ArgumentException("The dimensions/lengths of arguments have to correspond to each other!");
             this.algorithmPrint                = algorithmPrint;
-            allSimplexTables                   = new List<string[,]>();
+            AllSimplexTables                   = new List<string[,]>();
             defaultBasis                       = null;
             defaultBasisIndexes                = null;
             defaultBasisSolution               = null;
@@ -67,14 +69,8 @@ namespace SimplexMethod
         public LinearProgrammingProblem(LinearProgrammingProblem other)
         {
             algorithmPrint                = other.algorithmPrint;
-            allSimplexTables              = new List<string[,]>();
-            foreach (string[,] table in other.allSimplexTables)
-                allSimplexTables.Add(table);
+            AllSimplexTables              = new List<string[,]>();
             defaultBasis                  = other.defaultBasis;
-            if (other.defaultBasisIndexes == null)
-                defaultBasisIndexes = null;
-            else
-                defaultBasisIndexes           = (int[])other.defaultBasisIndexes.Clone();
             defaultBasisSolution          = other.defaultBasisSolution;
             limitationMatrix              = other.limitationMatrix;
             limitationVector              = other.limitationVector; 
@@ -85,7 +81,16 @@ namespace SimplexMethod
             solution                      = other.solution;
             Solvability                   = other.Solvability;
             variableChar                  = other.variableChar;
+            foreach (string[,] table in other.AllSimplexTables)
+                AllSimplexTables.Add(table);
+            if (other.defaultBasisIndexes == null)
+                defaultBasisIndexes = null;
+            else
+                defaultBasisIndexes = (int[])other.defaultBasisIndexes.Clone();
+
         }
+
+        #endregion
 
         public object Clone() { return new LinearProgrammingProblem(this); }
 
@@ -170,16 +175,16 @@ namespace SimplexMethod
         {
             get
             {
-                List<int> indexesList   = new List<int>();
-                int indexTmp            = 0;
-                Matrix limitationMatrix = new Matrix(this.limitationMatrix);
-                Vector limitationVector = new Vector(this.limitationVector);
-                bool maxObjectiveValue  = true;
-                Vector objCoeffsTmp     = new Vector(this.objectiveFunctionCoefficients);
-                Random random           = new Random();
-                short[] relationArray   = new short[this.relationArray.Length];
-                Vector[] tmpVectorArray;
-                char variableChar       = this.variableChar;
+                List<int> indexesList         = new List<int>();
+                int       indexTmp            = 0;
+                Matrix    limitationMatrix    = new Matrix(this.limitationMatrix);
+                Vector    limitationVector    = new Vector(this.limitationVector);
+                bool      maxObjectiveValue   = true;
+                Vector    objCoeffsTmp        = new Vector(this.objectiveFunctionCoefficients);
+                Random    random              = new Random();
+                short[]   relationArray       = new short[this.relationArray.Length];
+                Vector[]  tmpVectorArray;
+                char      variableChar        = this.variableChar;
                 while (variableChar == this.variableChar)
                     variableChar = validCharString[random.Next(validCharNum)];
                 for (int j = 0; j < this.limitationMatrix.SecondDimension; j++)
@@ -256,8 +261,8 @@ namespace SimplexMethod
         {
             if (solution.Dimension != limitationMatrix.SecondDimension)
                 throw new ArgumentException("basis.Length must be equal to limitationMatrix.FirstDimension!", nameof(solution));
-            Vector[] vectors = limitationMatrix.T.Vectors;
-            double composition = 1;
+            double   composition = 1;
+            Vector[] vectors     = limitationMatrix.T.Vectors;
             for (int i = 0; i < vectors.Length; i++)
             {
                 composition = vectors[i] * solution;
@@ -281,15 +286,15 @@ namespace SimplexMethod
                 throw new InvalidOperationException("For noncanonical problems basis doesn't exist!");
             if (basis.Length != limitationMatrix.FirstDimension)
                 throw new ArgumentException("basis.Length must be equal to limitationMatrix.FirstDimension!", nameof(basis));
-            int[] basisCopy = (int[])basis.Clone();
+            int[]    basisCopy                         = (int[])basis.Clone();
             Array.Sort(basisCopy);
             for (int i = 0; i < basisCopy.Length - 1; i++)
                 if (basisCopy[i] == basisCopy[i + 1] || basisCopy[i] < 0 || basisCopy[i + 1] < 0)
                     return null;
-            Vector[] basisVectors = new Vector[basis.Length], 
-            limitationVectors = limitationMatrix.Vectors;
-            Vector basisSolution = new Vector(limitationMatrix.SecondDimension), 
-            limitationVectorBasisCoefficients = new Vector(basis.Length);
+            Vector   basisSolution                     = new Vector(limitationMatrix.SecondDimension);
+            Vector[] basisVectors                      = new Vector[basis.Length];
+            Vector   limitationVectorBasisCoefficients = new Vector(basis.Length);
+            Vector[] limitationVectors                 = limitationMatrix.Vectors;
             for (int i = 0; i < basisVectors.Length; i++)
                 basisVectors[i] = limitationVectors[basis[i]];
             if (Matrix.UniteVectors(basisVectors).Rank != basis.Length)
@@ -310,11 +315,11 @@ namespace SimplexMethod
             foreach(Vector vector in basisVectors)
                 if (vector.Dimension != limitationMatrix.FirstDimension)
                     throw new ArgumentException("Each basis vector must have dimension, which is equal to limitationMatrix.FirstDimension!", nameof(basisVectors));
-            bool vectorPartOfLimitationMatrix = false;
-            Vector[] limitationVectors = limitationMatrix.Vectors;
-            List<int> indexesAllowable = new List<int>();
-            int indexTmp = 0;
-            int[] basisIndexes = new int[limitationMatrix.FirstDimension];
+            int[]     basisIndexes                  = new int[limitationMatrix.FirstDimension];
+            List<int> indexesAllowable              = new List<int>();
+            int       indexTmp                      = 0;
+            Vector[]  limitationVectors             = limitationMatrix.Vectors;
+            bool      vectorPartOfLimitationMatrix  = false;
             for (int i = 0; i < limitationMatrix.SecondDimension; i++)
                 indexesAllowable.Add(i);
             foreach(Vector basisVector in basisVectors)
@@ -366,11 +371,11 @@ namespace SimplexMethod
 
         public void SetDefaultBasis(int[] defaultBasisIndexes)
         {
-            defaultBasisSolution = AllowableBasis(defaultBasisIndexes);
+            defaultBasisSolution       = AllowableBasis(defaultBasisIndexes);
             if (defaultBasisSolution == null)
                 throw new ArgumentException("Correspond basis is not allowed!", nameof(defaultBasisIndexes));
-            this.defaultBasisIndexes = (int[])defaultBasisIndexes.Clone();
-            defaultBasis = new Vector[this.defaultBasisIndexes.Length];
+            this.defaultBasisIndexes   = (int[])defaultBasisIndexes.Clone();
+            defaultBasis               = new Vector[this.defaultBasisIndexes.Length];
             Vector[] limitationVectors = (Vector[])limitationMatrix.Vectors.Clone();
             for (int i = 0; i < defaultBasis.Length; i++)
                 defaultBasis[i] = limitationVectors[defaultBasisIndexes[i]];
@@ -378,14 +383,14 @@ namespace SimplexMethod
 
         public void SetDefaultBasis(Vector[] defaultBasisVectors)
         {
-            defaultBasisSolution = AllowableBasis(defaultBasisVectors);
+            defaultBasisSolution       = AllowableBasis(defaultBasisVectors);
             if (defaultBasisSolution == null)
                 throw new ArgumentException("Correspond basis is not allowed!", nameof(defaultBasisVectors));
-            defaultBasis = (Vector[])defaultBasisVectors.Clone();
-            defaultBasisIndexes = new int[defaultBasisVectors.Length];
-            int indexTmp = 0;
-            Vector[] limitationVectors = (Vector[])limitationMatrix.Vectors.Clone();
+            defaultBasis               = (Vector[])defaultBasisVectors.Clone();
+            defaultBasisIndexes        = new int[defaultBasisVectors.Length];
             List<int> indexesAllowable = new List<int>();
+            int indexTmp               = 0;
+            Vector[] limitationVectors = (Vector[])limitationMatrix.Vectors.Clone();
             for (int i = 0; i < limitationMatrix.SecondDimension; i++)
                 indexesAllowable.Add(i);
             foreach (Vector basisVector in defaultBasis)
@@ -410,17 +415,18 @@ namespace SimplexMethod
                 throw new InvalidOperationException("For noncanonical problems basis doesn't exist!");
             if (!AllowableSolution(defaultBasisSolution))
                 throw new ArgumentException("Inputed solution is not allowable!", nameof(defaultBasisSolution));
-            int positiveComponentsCount = 0, i = 0;
-            List<int> allowableIndexes = new List<int>();
-            Vector[] limitationVectors = (Vector[])limitationMatrix.Vectors.Clone();
+            List<int> allowableIndexes        = new List<int>();
+            int       i                       = 0;
+            Vector[]  limitationVectors       = (Vector[])limitationMatrix.Vectors.Clone();
+            int       positiveComponentsCount = 0;
             for (int j = 0; j < defaultBasisSolution.Dimension; j++)
                 if (defaultBasisSolution[j] > Epsilon)
                     positiveComponentsCount++;
             if (positiveComponentsCount > limitationMatrix.FirstDimension)
                 throw new ArgumentException("Inputed solution can not be basis!", nameof(defaultBasisSolution));
-            this.defaultBasisSolution = new Vector(defaultBasisSolution);
-            defaultBasisIndexes = new int[limitationMatrix.FirstDimension];
-            defaultBasis = new Vector[limitationMatrix.FirstDimension];
+            this.defaultBasisSolution   = new Vector(defaultBasisSolution);
+            defaultBasisIndexes         = new int[limitationMatrix.FirstDimension];
+            defaultBasis                = new Vector[limitationMatrix.FirstDimension];
             for (int k = 0; k < defaultBasis.Length; k++)
                 defaultBasis[k] = Vector.NullVector(defaultBasis.Length);
             for (int j = 0; j < defaultBasisSolution.Dimension; j++)
@@ -477,17 +483,21 @@ namespace SimplexMethod
         {
             if (defaultBasis == null || defaultBasisIndexes == null || defaultBasisSolution == null)
                 throw new ArgumentNullException(nameof(defaultBasis), "One or more arguments were null!");
-            allSimplexTables.Clear();
-            List<int> positiveCoordinatesIndexes = new List<int>();
-            int[] basisIndexes = (int[])defaultBasisIndexes.Clone();
-            int inputedVectorIndex = 0, outputedVectorIndex = 0, indexTmp = 0;
-            Vector basisObjectiveFunctionCoefficients = new Vector(defaultBasis.Length),
-            estimations = new Vector(limitationMatrix.SecondDimension), 
-            simplexRelations = null;
-            Vector[] tmpVectors = new Vector[limitationMatrix.SecondDimension + 1];
-            Matrix basisMatrix = Matrix.UniteVectors(defaultBasis), 
-            oldSimplexTable = new Matrix(limitationMatrix.FirstDimension, limitationMatrix.SecondDimension + 1),
-            newSimplexTable = new Matrix(limitationMatrix.FirstDimension, limitationMatrix.SecondDimension + 1);
+            AllSimplexTables.Clear();
+            int[]     basisIndexes                       = (int[])defaultBasisIndexes.Clone();
+            Matrix    basisMatrix                        = Matrix.UniteVectors(defaultBasis);
+            Vector    basisObjectiveFunctionCoefficients = new Vector(defaultBasis.Length);
+            Vector    estimations                        = new Vector(limitationMatrix.SecondDimension);
+            int       indexTmp                           = 0;
+            int       inputedVectorIndex                 = 0;
+            Matrix    newSimplexTable                    = new Matrix(limitationMatrix.FirstDimension, 
+                                                                      limitationMatrix.SecondDimension + 1);
+            Matrix    oldSimplexTable                    = new Matrix(limitationMatrix.FirstDimension, 
+                                                                      limitationMatrix.SecondDimension + 1);
+            int       outputedVectorIndex                = 0;
+            List<int> positiveCoordinatesIndexes         = new List<int>();
+            Vector    simplexRelations                   = null;
+            Vector[]  tmpVectors                         = new Vector[limitationMatrix.SecondDimension + 1];
             for (int i = 0; i < basisObjectiveFunctionCoefficients.Dimension; i++)
                 basisObjectiveFunctionCoefficients[i] = objectiveFunctionCoefficients[basisIndexes[i]];
             tmpVectors[0] = limitationVector;
@@ -498,7 +508,7 @@ namespace SimplexMethod
             {
                 for (int j = 0; j < estimations.Dimension; j++)
                     estimations[j] = basisObjectiveFunctionCoefficients * oldSimplexTable.GetColumn(j + 1) - objectiveFunctionCoefficients[j];
-                allSimplexTables.Add(fillStringSimplexTable(objectiveFunctionCoefficients, oldSimplexTable, estimations, basisIndexes));
+                AllSimplexTables.Add(fillStringSimplexTable(objectiveFunctionCoefficients, oldSimplexTable, estimations, basisIndexes));
                 if (estimations.Min > -Epsilon)
                 {
                     solution = Vector.NullVector(limitationMatrix.SecondDimension);
@@ -554,9 +564,29 @@ namespace SimplexMethod
 
         private void ArtificialBasisMethod()
         {
-            allSimplexTables.Clear();
-            List<int> positiveCoordinatesIndexes = new List<int>();
-            LinearProgrammingProblem canonicalProblem = EqualCanonicalProblem;
+            LinearProgrammingProblem canonicalProblem           = EqualCanonicalProblem;
+            AllSimplexTables.Clear();
+            bool                     allEstimationsNonNegative  = false;
+            Matrix                   auxiliaryNewSimplexTable   = Matrix.NullMatrix(canonicalProblem.limitationMatrix.FirstDimension, 
+                                                                             canonicalProblem.limitationMatrix.SecondDimension + 
+                                                                             canonicalProblem.limitationMatrix.FirstDimension + 1);
+            Matrix auxiliaryOldSimplexTable                     = Matrix.NullMatrix(canonicalProblem.limitationMatrix.FirstDimension, 
+                                                                             canonicalProblem.limitationMatrix.SecondDimension + 
+                                                                             canonicalProblem.limitationMatrix.FirstDimension + 1);
+            Matrix                   auxiliaryProblemObjCoeffs  = new Matrix(canonicalProblem.limitationMatrix.FirstDimension + 
+                                                                             canonicalProblem.limitationMatrix.SecondDimension, 2);
+            Vector                   auxiliaryProblemSolution   = new Vector(canonicalProblem.limitationMatrix.FirstDimension + 
+                                                                             canonicalProblem.limitationMatrix.SecondDimension);
+            int[]                    basisIndexes               = new int[canonicalProblem.limitationMatrix.FirstDimension];
+            Matrix                   basisObjCoeffs             = new Matrix(canonicalProblem.limitationMatrix.FirstDimension, 2);
+            Vector                   canonicalSolution          = new Vector(canonicalProblem.limitationMatrix.SecondDimension);
+            int                      count                      = 0;
+            Matrix                   estimations                = new Matrix(canonicalProblem.limitationMatrix.FirstDimension + 
+                                                                             canonicalProblem.limitationMatrix.SecondDimension, 2);
+            int                      inputedVectorIndex         = 0;
+            int                      outputedVectorIndex        = 0;
+            List<int>                positiveCoordinatesIndexes = new List<int>();
+            Vector                   simplexRelations           = new Vector(canonicalProblem.limitationMatrix.FirstDimension);
             for (int i = 0; i < canonicalProblem.LimitationNumber; i++)
                 if (canonicalProblem.limitationVector[i] < -Epsilon)
                 {
@@ -564,25 +594,9 @@ namespace SimplexMethod
                     for (int j = 0; j < canonicalProblem.VariableNumber; j++)
                         canonicalProblem.limitationMatrix[i, j] = -canonicalProblem.limitationMatrix[i, j];
                 }
-            bool allEstimationsNonNegative = false;
-            int inputedVectorIndex = 0, outputedVectorIndex = 0, count = 0;
-            int[] basisIndexes = new int[canonicalProblem.limitationMatrix.FirstDimension];
             for (int i = 0; i < basisIndexes.Length; i++)
                 basisIndexes[i] = canonicalProblem.limitationMatrix.SecondDimension + i;
-            Vector auxiliaryProblemSolution =
-                new Vector(canonicalProblem.limitationMatrix.FirstDimension + canonicalProblem.limitationMatrix.SecondDimension),
-            simplexRelations = new Vector(canonicalProblem.limitationMatrix.FirstDimension),
-            canonicalSolution = new Vector(canonicalProblem.limitationMatrix.SecondDimension);
-            Matrix auxiliaryProblemObjCoeffs =
-                new Matrix(canonicalProblem.limitationMatrix.FirstDimension + canonicalProblem.limitationMatrix.SecondDimension, 2),
-            estimations = new Matrix(canonicalProblem.limitationMatrix.FirstDimension + canonicalProblem.limitationMatrix.SecondDimension, 2),
-            basisObjCoeffs = new Matrix(canonicalProblem.limitationMatrix.FirstDimension, 2),
-            auxiliaryOldSimplexTable =
-                Matrix.NullMatrix(canonicalProblem.limitationMatrix.FirstDimension,
-                                  canonicalProblem.limitationMatrix.SecondDimension + canonicalProblem.limitationMatrix.FirstDimension + 1),
-            auxiliaryNewSimplexTable =
-                Matrix.NullMatrix(canonicalProblem.limitationMatrix.FirstDimension,
-                                  canonicalProblem.limitationMatrix.SecondDimension + canonicalProblem.limitationMatrix.FirstDimension + 1);
+
             for (int j = 0; j < canonicalProblem.limitationMatrix.SecondDimension; j++)
                 auxiliaryProblemObjCoeffs[j, 0] = canonicalProblem.objectiveFunctionCoefficients[j];
             for (int j = canonicalProblem.limitationMatrix.SecondDimension; j < auxiliaryProblemObjCoeffs.FirstDimension; j++)
@@ -600,7 +614,7 @@ namespace SimplexMethod
                     for (int j = 0; j < basisObjCoeffs.SecondDimension; j++)
                         basisObjCoeffs[i, j] = auxiliaryProblemObjCoeffs[basisIndexes[i], j];
                 estimations = auxiliaryOldSimplexTable.GetColumns(1).T * basisObjCoeffs - auxiliaryProblemObjCoeffs;
-                allSimplexTables.Add(fillStringSimplexTable(auxiliaryProblemObjCoeffs, auxiliaryOldSimplexTable, estimations, basisIndexes));
+                AllSimplexTables.Add(fillStringSimplexTable(auxiliaryProblemObjCoeffs, auxiliaryOldSimplexTable, estimations, basisIndexes));
                 allEstimationsNonNegative = true;
                 for (int j = 0; j < estimations.FirstDimension; j++)
                 {
@@ -773,6 +787,6 @@ namespace SimplexMethod
             if (Math.Abs(specialVector[0]) < Epsilon && Math.Abs(specialVector[1]) < Epsilon)
                 res = "0";
             return res;
-        } 
+        }
     }
 }
