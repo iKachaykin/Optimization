@@ -76,6 +76,8 @@ namespace SimplexMethod
             toPreviousFormButton.Click += new EventHandler(toPreviousFormButton_Click);
             Text = "Ввод исходного опорного решения";
             AutoSize = true;
+            AcceptButton = continueButton;
+            CancelButton = toPreviousFormButton;
             Controls.Add(titleLabel1);
             Controls.Add(canonicalProblemLabel);
             Controls.Add(titleLabel2);
@@ -85,6 +87,7 @@ namespace SimplexMethod
                 Controls.Add(label);
             Controls.Add(continueButton);
             Controls.Add(toPreviousFormButton);
+            MaximumSize = MinimumSize = Size;
         }
 
         public DefaultSolutionInput(LinearProgrammingProblem canonicalProblem, FormInitialConditions previousForm)

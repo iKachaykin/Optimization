@@ -17,5 +17,10 @@ namespace SimplexMethod
             Hide();
             baseForm.Show();
         }
+
+        private void UserGuide_Load(object sender, EventArgs e)
+        {
+            MaximumSize = MinimumSize = Size;
+        }
     }
 }

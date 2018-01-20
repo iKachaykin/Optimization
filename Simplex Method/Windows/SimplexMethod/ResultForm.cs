@@ -99,6 +99,7 @@ namespace SimplexMethod
                     for (int i = 0; i < table.GetLength(0); i++)
                         simplexTables.Rows.Add(GetRow(table, i));
                 }
+                simplexTables.TabIndex = 4;
                 Controls.Add(simplexTables);
                 formWidth = simplexTables.Width + 2 * firstControlLocation;
                 toPreviousFormButton.Location = new Point(firstControlLocation, simplexTables.Location.Y + simplexTables.Height + verticalDistanceBetweenControls);
@@ -112,11 +113,16 @@ namespace SimplexMethod
                 toPreviousFormButton.Location.Y);
             exitButton.Location = new Point(toStartFormButton.Location.X + toStartFormButton.Width + distanceBetweenButtons,
                 toStartFormButton.Location.Y);
+            toStartFormButton.TabIndex = 1;
+            toPreviousFormButton.TabIndex = 2;
+            exitButton.TabIndex = 3;
+            AcceptButton = toStartFormButton;
+            CancelButton = toPreviousFormButton;
             Controls.Add(toPreviousFormButton);
             Controls.Add(toStartFormButton);
             Controls.Add(exitButton);
             AutoSize = true;
-
+            MaximumSize = MinimumSize = Size;
         }
 
         public ResultForm(LinearProgrammingProblem problem, FormInitialConditions formWithProblem)
@@ -144,6 +150,7 @@ namespace SimplexMethod
             formWithProblem.previousForm.Close();
             formWithProblem.Close();
             Close();
+            Application.Exit();
         }
         private string [] GetRow(string[,] table, int index)
         {

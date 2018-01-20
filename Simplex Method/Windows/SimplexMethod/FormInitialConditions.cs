@@ -82,6 +82,8 @@ namespace SimplexMethod
             continueButton.UseVisualStyleBackColor = true;
             continueButton.Click += new EventHandler(continueButton_Click);
             continueButton.TabIndex = comboBoxesSigns[comboBoxesSigns.Length - 1].TabIndex + 1;
+            AcceptButton = continueButton;
+            CancelButton = toPreviousFormButton;
             Controls.Add(continueButton);
             toPreviousFormButton.Location = new Point(firstBoxLocation + continueButton.Width + distanceBetweenButtons, continueButton.Location.Y);
             toPreviousFormButton.Size = new Size((formWidth - 2 * firstBoxLocation - distanceBetweenButtons) / 2, buttonHeight);
@@ -94,6 +96,7 @@ namespace SimplexMethod
             Size = new Size(formWidth + 10,
                 (textBoxesLimitationMatrix.GetLength(0) + 1) * verticalBoxDistance + comboBoxHeight +
                 3 * firstBoxLocation + (textBoxesLimitationMatrix.GetLength(0) + 1) * boxHeight + 39 + continueButton.Size.Height);
+            MaximumSize = MinimumSize = Size;
         }
 
         public FormInitialConditions(int variableNumber, int limitationNumber, short methodNumber, bool algorithmPrint, Form1 previousForm)

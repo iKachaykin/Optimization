@@ -5,19 +5,21 @@ namespace SimplexMethod
 {
     public partial class Form1 : Form
     {
-        static public int LimitationNumber { get; private set; }
-        static public short MethodNumber { get; private set; }
-        static public bool PrintAlgorithms { get; private set; }
-        static public int VariableNumber { get; private set; }
+        private System.Drawing.Size defaultSize;
+
+        public int LimitationNumber { get; private set; }
+        public short MethodNumber { get; private set; }
+        public bool PrintAlgorithms { get; private set; }
+        public int VariableNumber { get; private set; }
 
         public Form1()
         {
             InitializeComponent();
         }
 
-        private void radioButton3_CheckedChanged(object sender, EventArgs e)
+        private void Form1_Load(object sender, EventArgs e)
         {
-
+            MinimumSize = MaximumSize = Size;
         }
 
         private void button1_Click(object sender, EventArgs e)

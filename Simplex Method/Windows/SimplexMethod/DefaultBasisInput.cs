@@ -74,6 +74,8 @@ namespace SimplexMethod
             toPreviousFormButton.UseVisualStyleBackColor = true;
             toPreviousFormButton.Click += new EventHandler(toPreviousFormButton_Click);
             Text = "Ввод исходного базиса";
+            AcceptButton = continueButton;
+            CancelButton = toPreviousFormButton;
             Controls.Add(titleLabel1);
             Controls.Add(canonicalProblemLabel);
             Controls.Add(titleLabel2);
@@ -83,6 +85,7 @@ namespace SimplexMethod
             Controls.Add(titleLabel3);
             Controls.Add(continueButton);
             Controls.Add(toPreviousFormButton);
+            MaximumSize = MinimumSize = Size;
         }
 
         public DefaultBasisInput(LinearProgrammingProblem canonicalProblem, FormInitialConditions previousForm)
