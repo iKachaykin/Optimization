@@ -5,8 +5,6 @@ namespace SimplexMethod
 {
     public partial class Form1 : Form
     {
-        private System.Drawing.Size defaultSize;
-
         public int LimitationNumber { get; private set; }
         public short MethodNumber { get; private set; }
         public bool PrintAlgorithms { get; private set; }
