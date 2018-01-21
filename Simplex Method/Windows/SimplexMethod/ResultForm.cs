@@ -86,14 +86,14 @@ namespace SimplexMethod
                 DataGridView simplexTables = new DataGridView();
                 simplexTables.Location = new Point(firstControlLocation, objectiveFunctionValueLabel.Location.Y +
                     objectiveFunctionValueLabel.Height + verticalDistanceBetweenControls);
-                simplexTables.Size = new Size(100 * problem.allSimplexTables[0].GetLength(1) + 60, 
-                    25 * (problem.allSimplexTables[0].GetLength(0) + 2));
-                for (int j = 0; j < problem.allSimplexTables[0].GetLength(1); j++)
+                simplexTables.Size = new Size(100 * problem.AllSimplexTables[0].GetLength(1) + 60, 
+                    25 * (problem.AllSimplexTables[0].GetLength(0) + 2));
+                for (int j = 0; j < problem.AllSimplexTables[0].GetLength(1); j++)
                 {
                     simplexTables.Columns.Add("", "");
                     simplexTables.Columns[j].ReadOnly = true;
                 }
-                foreach (string[,] table in problem.allSimplexTables)
+                foreach (string[,] table in problem.AllSimplexTables)
                 {
                     simplexTables.Rows.Add("Итерация №" + Convert.ToString(count++));
                     for (int i = 0; i < table.GetLength(0); i++)
