@@ -7,22 +7,24 @@ namespace SimplexMethod
     {
         #region Class fieldes --- Поля класса
 
-        private const double    Epsilon = 1E-8;
-        private const int       validCharNum = 10;
-        private const string    validCharString = "pqrstvwxyz";
+        //Class fields, necessary to work with linear proramming problems (LPP)
+        //Поля класса, необходимые для работы с задачами линейного программирования (ЗЛП)
 
-        private bool            algorithmPrint;
-        private Vector[]        defaultBasis;
-        private int[]           defaultBasisIndexes;
-        private Vector          defaultBasisSolution;
-        private Matrix          limitationMatrix;
-        private Vector          limitationVector;
-        private bool            maxObjectiveValue;
-        private Vector          objectiveFunctionCoefficients;
-        private short[]         relationArray;
-        private short[]         signArray;
-        private Vector          solution;
-        private char            variableChar;
+        private const double    Epsilon = 1E-8;                     //Field used in order to avoid bugs caused by double variables errors --- Поле, используемое для избежания багов, вызванных погрешностями в представлении в памятим чисел с плавающей точкой
+        private const int       validCharNum = 10;                  //Number of allowable symbols for variables --- Количество допустимых символов для обозначения переменных
+        private const string    validCharString = "pqrstvwxyz";     //String with allowable symbols for variables --- Строка, содержащая допустимые символы для обозначения переменных
+
+        private Vector[]        defaultBasis;                       //Default basis in simplex method --- Базис по-умолчанию для симплекс-метода
+        private int[]           defaultBasisIndexes;                //Indexes of vectors in LimitationMatrix.Vectors, which compose default basis in simplex method --- Индексы векторов в LimitationMatrix.Vectors, что составляют базис по-умолчанию для симплекс-метода
+        private Vector          defaultBasisSolution;               //Default basis solution in simplex method --- Опорное решение по-умолчанию, в симплекс-методе
+        private Matrix          limitationMatrix;                   //Matrix which contains coefficients before variables in system of limitation --- Матрица, содержащая коэффициенты перед неизвестными в системе ограничений
+        private Vector          limitationVector;                   //Vector which contains free coefficients in system of limitation --- Вектор, содержащий свободные члены в системе ограничений
+        private bool            maxObjectiveValue;                  //Field which eqaul true, if wanted extremum is max, and false - otherwise --- Поле, равное true, если искомый экстремум - максимум, и false - в противном случае
+        private Vector          objectiveFunctionCoefficients;      //Coefficients before variables in definition of objective function --- Коэффиценты перед неизвестными в определении целевой функции
+        private short[]         relationArray;                      //Array which element equal -1, when type of respective relation is "<=", 0 - when "=", and "1" - when ">=" --- Массив, элемент которого равен -1, если соответствующий тип отношения "<=", 0 - если "=", и 1 - если ">="
+        private short[]         signArray;                          //Array which element equal -1, when respective variable is "<= 0", 1 - when ">= 0", and "0", if info is missing --- Массив, элемент которого равен -1, если соответствующая переменная "<= 0", 1 - если ">= 0", и "0" - если о переменной ничего неизвестно
+        private Vector          solution;                           //Field correspond to problem solution --- Поле относящееся к решению задачи
+        private char            variableChar;                       //Field wich used as char of variables --- Поле используемое, как символ для неизвестных
 
         #endregion
 
@@ -37,7 +39,7 @@ namespace SimplexMethod
             if (!InputDataValid(limitationMatrix, limitationVector, 
                                 objectiveFunctionCoefficients,relationArray, signArray))
                 throw new ArgumentException("The dimensions/lengths of arguments have to correspond to each other!");
-            this.algorithmPrint                = algorithmPrint;
+            this.AlgorithmPrint                = algorithmPrint;
             AllSimplexTables                   = new List<string[,]>();
             defaultBasis                       = null;
             defaultBasisIndexes                = null;
@@ -69,7 +71,7 @@ namespace SimplexMethod
 
         public LinearProgrammingProblem(LinearProgrammingProblem other)
         {
-            algorithmPrint                = other.algorithmPrint;
+            AlgorithmPrint                = other.AlgorithmPrint;
             AllSimplexTables              = new List<string[,]>();
             defaultBasis                  = other.defaultBasis;
             defaultBasisSolution          = other.defaultBasisSolution;
@@ -232,7 +234,7 @@ namespace SimplexMethod
                     for (int j = 0; j < basisObjCoeffs.SecondDimension; j++)
                         basisObjCoeffs[i, j] = auxiliaryProblemObjCoeffs[basisIndexes[i], j];
                 estimations = auxiliaryOldSimplexTable.GetColumns(1).T * basisObjCoeffs - auxiliaryProblemObjCoeffs;
-                if (algorithmPrint)
+                if (AlgorithmPrint)
                     AllSimplexTables.Add(FillStringSimplexTable(auxiliaryProblemObjCoeffs, auxiliaryOldSimplexTable, estimations, basisIndexes));
                 allEstimationsNonNegative = true;
                 for (int j = 0; j < estimations.FirstDimension; j++)
@@ -543,7 +545,7 @@ namespace SimplexMethod
             {
                 for (int j = 0; j < estimations.Dimension; j++)
                     estimations[j] = basisObjectiveFunctionCoefficients * oldSimplexTable.GetColumn(j + 1) - objectiveFunctionCoefficients[j];
-                if (algorithmPrint)
+                if (AlgorithmPrint)
                     AllSimplexTables.Add(FillStringSimplexTable(objectiveFunctionCoefficients, oldSimplexTable, estimations, basisIndexes));
                 if (estimations.Min > -Epsilon)
                 {
@@ -686,7 +688,7 @@ namespace SimplexMethod
 
         #region Properties --- Свойства
 
-        public bool            AlgorithmPrint { get {return algorithmPrint; } }
+        public bool            AlgorithmPrint   { get; private set; }
 
         public List<string[,]> AllSimplexTables { get; private set; }
 
@@ -740,7 +742,7 @@ namespace SimplexMethod
                     Array.Resize(ref tmpVectorArray, tmpVectorArray.Length + 1);
                     tmpVectorArray[index + indexTmp + 1] = -tmpVectorArray[index + indexTmp];
                     Array.Copy(limitationMatrix.Vectors, index + indexTmp + 1, tmpVectorArray,
-                               index + indexTmp + 2, limitationMatrix.SecondDimension - index - indexTmp - 1);
+                               index + indexTmp + 2, VariableNumber - index - indexTmp - 1);
                     limitationMatrix = Matrix.UniteVectors(tmpVectorArray);
                     indexTmp++;
                 }
@@ -756,10 +758,10 @@ namespace SimplexMethod
                         limitationMatrix = Matrix.UniteVectors(tmpVectorArray);
                     }
                 }
-                short[] signArray = new short[limitationMatrix.SecondDimension];
+                short[] signArray = new short[VariableNumber];
                 for (int i = 0; i < signArray.Length; i++)
                     signArray[i] = 1;
-                Vector objectiveFunctionCoefficients = new Vector(limitationMatrix.SecondDimension);
+                Vector objectiveFunctionCoefficients = new Vector(VariableNumber);
                 for (int i = 0, newIndex = 0; i < objCoeffsTmp.Dimension; i++, newIndex++)
                 {
                     objectiveFunctionCoefficients[newIndex] = objCoeffsTmp[i];
@@ -775,7 +777,7 @@ namespace SimplexMethod
                     objectiveFunctionCoefficients = -objectiveFunctionCoefficients;
                 return new LinearProgrammingProblem(limitationMatrix, limitationVector,
                                                     objectiveFunctionCoefficients,
-                                                    algorithmPrint, maxObjectiveValue,
+                                                    AlgorithmPrint, maxObjectiveValue,
                                                     relationArray, signArray, variableChar);
             }
         }
