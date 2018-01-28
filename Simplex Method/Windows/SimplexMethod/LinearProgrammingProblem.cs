@@ -7,29 +7,31 @@ namespace SimplexMethod
     {
         #region Class fieldes --- Поля класса
 
-        //Class fields, necessary to work with linear proramming problems (LPP)
-        //Поля класса, необходимые для работы с задачами линейного программирования (ЗЛП)
+        // Class fields, necessary to work with linear proramming problems (LPP)
+        // Поля класса, необходимые для работы с задачами линейного программирования (ЗЛП)
 
-        private const double    Epsilon = 1E-8;                     //Field used in order to avoid bugs caused by double variables errors --- Поле, используемое для избежания багов, вызванных погрешностями в представлении в памятим чисел с плавающей точкой
-        private const int       validCharNum = 10;                  //Number of allowable symbols for variables --- Количество допустимых символов для обозначения переменных
-        private const string    validCharString = "pqrstvwxyz";     //String with allowable symbols for variables --- Строка, содержащая допустимые символы для обозначения переменных
+        private const double    Epsilon = 1E-8;                     // Field used in order to avoid bugs caused by double variables errors --- Поле, используемое для избежания багов, вызванных погрешностями в представлении в памятим чисел с плавающей точкой
+        private const int       validCharNum = 10;                  // Number of allowable symbols for variables --- Количество допустимых символов для обозначения переменных
+        private const string    validCharString = "pqrstvwxyz";     // String with allowable symbols for variables --- Строка, содержащая допустимые символы для обозначения переменных
 
-        private Vector[]        defaultBasis;                       //Default basis in simplex method --- Базис по-умолчанию для симплекс-метода
-        private int[]           defaultBasisIndexes;                //Indexes of vectors in LimitationMatrix.Vectors, which compose default basis in simplex method --- Индексы векторов в LimitationMatrix.Vectors, что составляют базис по-умолчанию для симплекс-метода
-        private Vector          defaultBasisSolution;               //Default basis solution in simplex method --- Опорное решение по-умолчанию, в симплекс-методе
-        private Matrix          limitationMatrix;                   //Matrix which contains coefficients before variables in system of limitation --- Матрица, содержащая коэффициенты перед неизвестными в системе ограничений
-        private Vector          limitationVector;                   //Vector which contains free coefficients in system of limitation --- Вектор, содержащий свободные члены в системе ограничений
-        private bool            maxObjectiveValue;                  //Field which eqaul true, if wanted extremum is max, and false - otherwise --- Поле, равное true, если искомый экстремум - максимум, и false - в противном случае
-        private Vector          objectiveFunctionCoefficients;      //Coefficients before variables in definition of objective function --- Коэффиценты перед неизвестными в определении целевой функции
-        private short[]         relationArray;                      //Array which element equal -1, when type of respective relation is "<=", 0 - when "=", and "1" - when ">=" --- Массив, элемент которого равен -1, если соответствующий тип отношения "<=", 0 - если "=", и 1 - если ">="
-        private short[]         signArray;                          //Array which element equal -1, when respective variable is "<= 0", 1 - when ">= 0", and "0", if info is missing --- Массив, элемент которого равен -1, если соответствующая переменная "<= 0", 1 - если ">= 0", и "0" - если о переменной ничего неизвестно
-        private Vector          solution;                           //Field correspond to problem solution --- Поле относящееся к решению задачи
-        private char            variableChar;                       //Field wich used as char of variables --- Поле используемое, как символ для неизвестных
+        private Vector[]        defaultBasis;                       // Default basis in simplex method --- Базис по-умолчанию для симплекс-метода
+        private int[]           defaultBasisIndexes;                // Indexes of vectors in LimitationMatrix.Vectors, which compose default basis in simplex method --- Индексы векторов в LimitationMatrix.Vectors, что составляют базис по-умолчанию для симплекс-метода
+        private Vector          defaultBasisSolution;               // Default basis solution in simplex method --- Опорное решение по-умолчанию, в симплекс-методе
+        private Matrix          limitationMatrix;                   // Matrix which contains coefficients before variables in system of limitation --- Матрица, содержащая коэффициенты перед неизвестными в системе ограничений
+        private Vector          limitationVector;                   // Vector which contains free coefficients in system of limitation --- Вектор, содержащий свободные члены в системе ограничений
+        private bool            maxObjectiveValue;                  // Field which eqaul true, if wanted extremum is max, and false - otherwise --- Поле, равное true, если искомый экстремум - максимум, и false - в противном случае
+        private Vector          objectiveFunctionCoefficients;      // Coefficients before variables in definition of objective function --- Коэффиценты перед неизвестными в определении целевой функции
+        private short[]         relationArray;                      // Array which element equal -1, when type of respective relation is "<=", 0 - when "=", and "1" - when ">=" --- Массив, элемент которого равен -1, если соответствующий тип отношения "<=", 0 - если "=", и 1 - если ">="
+        private short[]         signArray;                          // Array which element equal -1, when respective variable is "<= 0", 1 - when ">= 0", and "0", if info is missing --- Массив, элемент которого равен -1, если соответствующая переменная "<= 0", 1 - если ">= 0", и "0" - если о переменной ничего неизвестно
+        private Vector          solution;                           // Field correspond to problem solution --- Поле относящееся к решению задачи
+        private char            variableChar;                       // Field wich used as char of variables --- Поле используемое, как символ для неизвестных
 
         #endregion
 
         #region Constructors --- Конструкторы
 
+        // Constructor which get all possible parameteres and set their values to respective class fields
+        //
         public LinearProgrammingProblem
         (Matrix limitationMatrix, Vector limitationVector, 
          Vector objectiveFunctionCoefficients, bool algorithmPrint = false, 
@@ -69,6 +71,8 @@ namespace SimplexMethod
                 this.signArray = (short[])signArray.Clone();
         }
 
+        // Copy constructor
+        // 
         public LinearProgrammingProblem(LinearProgrammingProblem other)
         {
             AlgorithmPrint                = other.AlgorithmPrint;
@@ -97,6 +101,10 @@ namespace SimplexMethod
 
         #region Methods --- Методы
 
+        // Method which check if inputed basis (array of indeces of basis vectors in limitationMatrix.Vectors) is allowable
+        // Return basis solution respective to inputed basis, if basis is allowable, and null - otherwise
+        //
+        //
         public Vector AllowableBasis(int[] basis)
         {
             if (!Canonical)
@@ -123,6 +131,10 @@ namespace SimplexMethod
             return AllowableSolution(basisSolution) ? basisSolution : null;
         }
 
+        // Method which check if inputed basis (array of vectors) is allowable
+        // Return basis solution respective to inputed basis, if basis is allowable, and null - otherwise
+        //
+        //
         public Vector AllowableBasis(Vector[] basisVectors)
         {
             if (!Canonical)
@@ -158,8 +170,14 @@ namespace SimplexMethod
             return AllowableBasis(basisIndexes);
         }
 
+        // Method which check if inputed basis (matrix containing basis vectors) is allowable
+        // Return basis solution respective to inputed basis, if basis is allowable, and null - otherwise
+        //
+        //
         public Vector AllowableBasis(Matrix basisMatrix) => AllowableBasis(basisMatrix.Vectors);
 
+        // Method which check is inputed vector an allowable solution of LPP
+        // 
         public bool AllowableSolution(Vector solution)
         {
             if (solution.Dimension != VariableNumber)
@@ -183,6 +201,8 @@ namespace SimplexMethod
 
         }
 
+        // Method which solve LPP, using artificial basis method and simplex algorithm
+        // 
         private void ArtificialBasisMethod()
         {
             LinearProgrammingProblem canonicalProblem = EqualCanonicalProblem;
@@ -326,8 +346,12 @@ namespace SimplexMethod
             solution = new Vector(TrimCanonicalSolution(canonicalSolution));
         }
 
+        // Clone() override
+        // 
         public object Clone() => new LinearProgrammingProblem(this);
 
+        // Auxiliary method used in order to print valid results of artificial basis algorithm
+        // 
         private string ConvertSpecialVectorToString(Vector specialVector)
         {
             string res = "";
@@ -342,6 +366,8 @@ namespace SimplexMethod
             return res;
         }
 
+        // Method returning string which contains used simplex table
+        // 
         private string[,] FillStringSimplexTable(Vector objCoefficients,
             Matrix simplexTableCoordinates, Vector estimations, int[] basisIndexes)
         {
@@ -377,6 +403,8 @@ namespace SimplexMethod
             return table;
         }
 
+        // Method returning string which contains used simplex table
+        // 
         private string[,] FillStringSimplexTable(Matrix objCoefficients, Matrix simplexTableCoordinates, Matrix estimations, int[] basisIndexes)
         {
             string[,] table = new string[LimitationNumber + 3, simplexTableCoordinates.SecondDimension + 3];
@@ -411,6 +439,8 @@ namespace SimplexMethod
             return table;
         }
 
+        // Method which check inputed data and return true, if it could define LPP, and false - otherwise
+        // 
         private static bool InputDataValid
         (Matrix limitationMatrix, Vector limitationVector,
          Vector objectiveFunctionCoefficients, short[] relationArray = null,
@@ -437,6 +467,8 @@ namespace SimplexMethod
             return res;
         }
 
+        // Setter for default basis
+        // 
         public void SetDefaultBasis(int[] defaultBasisIndexes)
         {
             defaultBasisSolution       = AllowableBasis(defaultBasisIndexes);
@@ -449,6 +481,8 @@ namespace SimplexMethod
                 defaultBasis[i] = limitationVectors[defaultBasisIndexes[i]];
         }
 
+        // Setter for default basis
+        // 
         public void SetDefaultBasis(Vector[] defaultBasisVectors)
         {
             defaultBasisSolution       = AllowableBasis(defaultBasisVectors);
@@ -476,6 +510,8 @@ namespace SimplexMethod
             }
         }
 
+        // Setter for default basis solution
+        // 
         public void SetDefaultBasisSolution(Vector defaultBasisSolution)
         {
             if (!Canonical)
@@ -516,6 +552,8 @@ namespace SimplexMethod
 
         }
 
+        // Simplex algorithm which is used, if default basis or default basis solution were inputed
+        // 
         private void SimplexAlgorithmWithDefaultSolution()
         {
             if (defaultBasis == null || defaultBasisIndexes == null || defaultBasisSolution == null)
@@ -598,6 +636,8 @@ namespace SimplexMethod
             }
         }
 
+        // Method solving LPP
+        // 
         public void Solve()
         {
             if (defaultBasis != null && defaultBasisIndexes != null && defaultBasisSolution != null)
@@ -606,6 +646,8 @@ namespace SimplexMethod
                 ArtificialBasisMethod();
         }
 
+        // Method converting LPP to string
+        //
         public override string ToString()
         {
             string res = "";
@@ -662,6 +704,8 @@ namespace SimplexMethod
             return res;
         }
 
+        // Method converting solution of equal canonical LPP to solution of this
+        // 
         public Vector TrimCanonicalSolution(Vector canonicalSolution)
         {
             if (canonicalSolution == null)
@@ -688,10 +732,16 @@ namespace SimplexMethod
 
         #region Properties --- Свойства
 
+        // Property defining is it necessary to store intermediate simplex tables
+        // 
         public bool            AlgorithmPrint   { get; private set; }
 
+        // List containing all simplex tables appeared in simplex algorithm
+        // 
         public List<string[,]> AllSimplexTables { get; private set; }
 
+        // Property, returning true, if LPP is canonical, and false - otherwise
+        // 
         public bool            Canonical
         {
             get
@@ -708,6 +758,8 @@ namespace SimplexMethod
             }
         }
 
+        // Property creating equal canonical LPP
+        // 
         public LinearProgrammingProblem EqualCanonicalProblem
         {
             get
@@ -782,20 +834,36 @@ namespace SimplexMethod
             }
         }
 
+        // Property for limitationMatrix
+        // 
         public Matrix LimitationMatrix              { get { return limitationMatrix; } }
 
+        // Property returning number of limitation of LPP
+        // 
         public int    LimitationNumber              { get { return limitationMatrix.FirstDimension; } }
 
+        // Property for limitationVector
+        // 
         public Vector LimitationVector              { get { return limitationVector; } }
 
+        // Property for objectiveFunctionCoefficients
+        // 
         public Vector ObjectiveFunctionCoefficients { get { return objectiveFunctionCoefficients; } }
 
+        // Property for solution of LPP (= null if LPP is unsolvable)
+        // 
         public Vector Solution                      { get { return solution; } }
 
+        // Property which return 1, if LPP is solvable, 0 - otherwise, and -1, if LPP hasn't been solved yet
+        // 
         public short  Solvability                   { get; private set; }
 
+        // Property returning number of variables of LPP
+        // 
         public int    VariableNumber                { get { return limitationMatrix.SecondDimension; } }
 
+        // Property for variableChar
+        //
         public char   VariableSymbol                { get { return variableChar; } }
 
         #endregion
