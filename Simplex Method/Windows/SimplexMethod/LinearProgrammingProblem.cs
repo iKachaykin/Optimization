@@ -34,14 +34,14 @@ namespace SimplexMethod
         //
         public LinearProgrammingProblem
         (Matrix limitationMatrix, Vector limitationVector, 
-         Vector objectiveFunctionCoefficients, bool algorithmPrint = false, 
+         Vector objectiveFunctionCoefficients, bool AlgorithmPrint = false, 
          bool maxObjectiveValue = true, short[] relationArray = null, 
          short[] signArray = null, char variableChar = 'x')
         {
             if (!InputDataValid(limitationMatrix, limitationVector, 
                                 objectiveFunctionCoefficients,relationArray, signArray))
                 throw new ArgumentException("The dimensions/lengths of arguments have to correspond to each other!");
-            this.AlgorithmPrint                = algorithmPrint;
+            this.AlgorithmPrint                = AlgorithmPrint;
             AllSimplexTables                   = new List<string[,]>();
             defaultBasis                       = null;
             defaultBasisIndexes                = null;
@@ -794,7 +794,7 @@ namespace SimplexMethod
                     Array.Resize(ref tmpVectorArray, tmpVectorArray.Length + 1);
                     tmpVectorArray[index + indexTmp + 1] = -tmpVectorArray[index + indexTmp];
                     Array.Copy(limitationMatrix.Vectors, index + indexTmp + 1, tmpVectorArray,
-                               index + indexTmp + 2, VariableNumber - index - indexTmp - 1);
+                               index + indexTmp + 2, limitationMatrix.SecondDimension - index - indexTmp - 1);
                     limitationMatrix = Matrix.UniteVectors(tmpVectorArray);
                     indexTmp++;
                 }
@@ -810,10 +810,10 @@ namespace SimplexMethod
                         limitationMatrix = Matrix.UniteVectors(tmpVectorArray);
                     }
                 }
-                short[] signArray = new short[VariableNumber];
+                short[] signArray = new short[limitationMatrix.SecondDimension];
                 for (int i = 0; i < signArray.Length; i++)
                     signArray[i] = 1;
-                Vector objectiveFunctionCoefficients = new Vector(VariableNumber);
+                Vector objectiveFunctionCoefficients = new Vector(limitationMatrix.SecondDimension);
                 for (int i = 0, newIndex = 0; i < objCoeffsTmp.Dimension; i++, newIndex++)
                 {
                     objectiveFunctionCoefficients[newIndex] = objCoeffsTmp[i];
