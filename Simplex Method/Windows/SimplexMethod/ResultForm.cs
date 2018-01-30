@@ -37,7 +37,6 @@ namespace SimplexMethod
             Label2.Text = "Значение аргумента, в котором функция достигает своего экстремума:";
             Label2.Font = new Font("Microsoft Sans Serif", 10F);
             Label2.AutoSize = true;
-            problem.Solve();
             if (formWithProblem.MethodNumber == 0 || formWithProblem.MethodNumber == 1)
                 solution = givenProblem.TrimCanonicalSolution(problem.Solution);
             else

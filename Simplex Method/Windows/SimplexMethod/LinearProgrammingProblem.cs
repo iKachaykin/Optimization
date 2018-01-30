@@ -638,8 +638,10 @@ namespace SimplexMethod
 
         // Method solving LPP
         // Метод, решающий ЗЛП
-        public void Solve()
+        private void Solve()
         {
+            if (Solvability != -1)
+                return;
             if (defaultBasis != null && defaultBasisIndexes != null && defaultBasisSolution != null)
                 SimplexAlgorithmWithDefaultSolution();
             else
@@ -852,7 +854,15 @@ namespace SimplexMethod
 
         // Property for solution of LPP (= null if LPP is unsolvable)
         // Свойство, возвращающее решение ЗЛП, если оно существует, и null - в противном случае
-        public Vector Solution                      { get { return solution; } }
+        public Vector Solution
+        {
+            get
+            {
+                if (Solvability == -1)
+                    Solve();
+                return solution;
+            }
+        }
 
         // Property which return 1, if LPP is solvable, 0 - otherwise, and -1, if LPP hasn't been solved yet
         // Свойство, возвращающее 1, если ЗЛП - разрешима, 0 - если не разрешима, и -1 - если ЗЛП ещё не решалась
