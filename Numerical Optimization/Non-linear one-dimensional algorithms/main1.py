@@ -5,15 +5,16 @@ from matplotlib.table import Table
 
 
 def f(x):
-    return x * x * x * x / (x + 1) / (x + 1) / (x + 1)
+    return np.abs(x) + 2 * x * x
 
 
 def main():
     a, b, dot_num, additional_length_multiplier_x, additional_length_multiplier_y, plot_style, borders_style, \
     solution_style, figsize, methods_number, solution_exact, data, target, epsilon, iter_lim \
-        = -0.5, 1.0, 1000, 0.0, 0.0, 'k-', 'k--', 'ro', (15.0, 7.5), 4, 0.0, [], "min", 1e-6, 1000
-    optimization_methods = (nlopt.dichotomy, nlopt.gsection, nlopt.fibonacci, nlopt.tangent)
-    optimization_methods_names = ("Метод дихотомии", "Метод золотого сечения", "Метод Фибоначчи", "Метод касательных")
+        = -0.5, 2.0, 1000, 0.0, 0.0, 'k-', 'k--', 'ro', (15.0, 7.5), 5, 0.0, [], "min", 1e-6, 1000
+    optimization_methods = (nlopt.dichotomy, nlopt.gsection, nlopt.fibonacci, nlopt.tangent, nlopt.parabolic)
+    optimization_methods_names = ("Метод дихотомии", "Метод золотого сечения", "Метод Фибоначчи", "Метод касательных",
+                                  "Метод парабол")
     table_head = ("Название\nметода", "Численное\nрешение", "Значение\nцелевой\nфункции",
                   "Абсолютная\nпогрешность\n(аргумент)", "Абсолютная\nпогрешность\n(функция)")
     fmt_a, fmt_b, fmt_solution_exact, fmt_target_value = r"%.", r"%.", r"%.", r"%."
@@ -49,7 +50,7 @@ def main():
             tab.add_cell(i, j, figsize[0] / ncols, 0.1, text=str(data[i - 1][j]), loc="center")
     tab.set_fontsize(9.0)
     ax.add_table(tab)
-    plt.title(r"$Задача: f(x) = \frac{x^4}{\left(x + 1\right)^3} \rightarrow %s, x\in[$" % target + fmt_a % a + r"; " + fmt_b % b
+    plt.title(r"$Задача: f(x) = |x| + 2x^2 \rightarrow %s, x\in[$" % target + fmt_a % a + r"; " + fmt_b % b
               + r"]%sТочное решение:" % "\n\n" + r"$x_{%s}$ = " % target + fmt_solution_exact % solution_exact +
               r"; $f(x_{%s})$ = " % target + fmt_target_value % f(solution_exact))
     plt.show()
