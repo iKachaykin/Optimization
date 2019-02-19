@@ -127,8 +127,7 @@ def psi_tau_to_x_matrix(psi, tau):
 
 if __name__ == '__main__':
 
-    file_path = '/Users/ivankachaikin/Documents/Учеба/Методы оптимизации/' \
-                'partition_problem_numerical_simulations_output.txt'
+    file_path = 'D:/tmp/partition_problem_numerical_simulations_output.txt'
     f = open(file_path, 'w')
 
     msg_start, msg_end = '\n----------------------------------\n', '\n----------------------------------\n'
@@ -172,7 +171,7 @@ if __name__ == '__main__':
 
         f.write(msg_start + '\n')
         f.write('Индекс вычислительного эксперимента: %d\n' % (sim + 1))
-        f.write('Начальные приближения\n{0}: {1}\n{2}1:\n{3}\n'.format(psi_ch, psi_initial, tau_ch, tau_1_initial))
+        f.write('Начальные приближения\npsi: {0} tau_1:\n{1}\n'.format(psi_initial, tau_1_initial))
         f.write('Значение целевого функционала на начальном приближении: %.8f\n' %
                 target_func_vector(initial_solution, args))
 
@@ -190,7 +189,7 @@ if __name__ == '__main__':
             print('Оптимальное решение\n{0}: {1}\n{2}1:\n{3}'.format(psi_ch, psi_solution, tau_ch, tau_1_solution))
             print('Оптимальное значение целевого функционала: %.8f' % target_func_vector(results[-1], args))
 
-            f.write('Оптимальное решение\n{0}: {1}\n{2}1:\n{3}\n'.format(psi_ch, psi_solution, tau_ch, tau_1_solution))
+            f.write('Оптимальное решение\npsi: {0} tau_1:\n{1}\n'.format(psi_solution, tau_1_solution))
             f.write('Оптимальное значение целевого функционала: %.8f\n' % target_func_vector(results[-1], args))
 
         except Exception as e:

@@ -47,7 +47,7 @@ def main():
     z = f([xx, yy])
     plt.xlabel(r"$x_1$")
     plt.ylabel(r"$x_2$")
-    plt.grid("True", alpha=grid_alpha)
+    plt.grid(True)
     colors = create_colors(levels.size)[::-1]
     plt.contour(x, y, z, levels=levels, colors=colors)
     plt.plot(points_seq[:, 0], points_seq[:, 1], point_seq_style, label=u"Наближення")

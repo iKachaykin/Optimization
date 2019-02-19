@@ -3,8 +3,8 @@ import numpy.linalg as linalg
 from scipy.misc import derivative
 from math import isnan
 from tqdm import tqdm as tqdm
-from multiprocessing import cpu_count
 from multiprocessing.dummy import Pool as ThreadPool
+
 
 
 def dichotomy(func, a, b, a_lst=None, b_lst=None, target="min", epsilon=1e-10, iter_lim=1000000):
@@ -282,7 +282,7 @@ def middle_grad(x0, func, epsilon=1e-6):
 
 # Вспомогательная функция, вычисляющая градиент, как вектор, близкий к вектору левосторонних частных производных
 # Данная функция медленнее, чем её аналог выше, но её можно применять для всех функций
-def left_side_grad_non_matrix(x0, func, epsilon=1e-6):
+cpdef double[:] left_side_grad_non_matrix(double[:] x0, func, double epsilon=1e-6):
     gradient, unit_m = np.zeros_like(x0), np.eye(x0.size, x0.size)
     for i in range(x0.size):
         gradient[i] = (func(x0) - func(x0 - epsilon * unit_m[i])) / epsilon
@@ -291,7 +291,7 @@ def left_side_grad_non_matrix(x0, func, epsilon=1e-6):
 
 # Вспомогательная функция, вычисляющая градиент, как вектор, близкий к вектору правосторонних частных производных
 # Данная функция медленнее, чем её аналог выше, но её можно применять для всех функций
-def right_side_grad_non_matrix(x0, func, epsilon=1e-6):
+cpdef double[:] right_side_grad_non_matrix(double[:] x0, func, double epsilon=1e-6):
     gradient, unit_m = np.zeros_like(x0), np.eye(x0.size, x0.size)
     for i in range(x0.size):
         gradient[i] = (func(x0 + epsilon * unit_m[i]) - func(x0)) / epsilon
@@ -301,7 +301,7 @@ def right_side_grad_non_matrix(x0, func, epsilon=1e-6):
 # Вспомогательная функция, вычисляющая градиент, как вектор, близкий к вектору среднеарифметических значений
 # между правосторонними и левосторонними частными производными
 # Данная функция медленнее, чем её аналог выше, но её можно применять для всех функций
-def middle_grad_non_matrix(x0, func, epsilon=1e-6):
+cpdef double[:] middle_grad_non_matrix(double[:] x0, func, double epsilon=1e-6):
     gradient = np.zeros_like(x0)
     unit_m = np.eye(x0.size, x0.size)
     for i in range(x0.size):
@@ -312,8 +312,8 @@ def middle_grad_non_matrix(x0, func, epsilon=1e-6):
 # Вспомогательная функция, вычисляющая градиент, как вектор, близкий к вектору среднеарифметических значений
 # между правосторонними и левосторонними частными производными
 # Распараллеленная версия функции middle_grad_non_matrix
-def middle_grad_non_matrix_pool(x0, func, epsilon=1e-6):
-    pool = ThreadPool(np.minimum(x0.size, cpu_count()))
+cpdef double[:] middle_grad_non_matrix_pool(double[:] x0, func, double epsilon=1e-6):
+    pool = ThreadPool(x0.size)
     args_lst = [(i, x0, func, epsilon) for i in range(x0.size)]
     gradient = pool.map(partial_derivative, args_lst)
     pool.close()
@@ -321,7 +321,7 @@ def middle_grad_non_matrix_pool(x0, func, epsilon=1e-6):
     return np.array(gradient)
 
 
-def partial_derivative(args):
+cpdef double partial_derivative(args):
     i, x0, func, epsilon = args
     unit_m = np.eye(x0.size, x0.size)
     return (func(x0 + epsilon * unit_m[i]) - func(x0 - epsilon * unit_m[i])) / 2 / epsilon
@@ -511,8 +511,9 @@ def step_adaptive_alternative(kwargs):
 # beta - коэффициент растяжения пространства
 # ----------------------------------------------------------------------------------------------------------------------
 # Возвращаемое значение: преобразованная матрица B
-def matrix_B_transformation(matrix_B, grad_current, grad_next, beta):
-    r_vector = np.dot(matrix_B.T, grad_next - grad_current)
+cpdef double[:, :] matrix_B_transformation(double[:, :] matrix_B, double[:] grad_current, double[:] grad_next,
+                                           double beta):
+    r_vector = np.dot(matrix_B.T, np.asarray(grad_next) - np.asarray(grad_current))
     r_vector = r_vector / linalg.norm(r_vector)
     return np.dot(matrix_B, np.eye(matrix_B.shape[0], matrix_B.shape[1]) +
                   (beta - 1) * np.dot(r_vector.reshape(r_vector.size, 1), r_vector.reshape(1, r_vector.size)))
@@ -547,12 +548,13 @@ def matrix_B_transformation(matrix_B, grad_current, grad_next, beta):
 # 1) если return_grads = True, то возвращаемое значение - tuple, первый элемент которой - list всех точек приближения,
 # второй - list всех субградиентов в соответствующих точках
 # 2) если return_grads = False, то возвращаемое значение - list всех точек приближения
-def r_algorithm_B_form(func, x0, grad, beta, step_method, step_method_kwargs, grad_epsilon, calc_epsilon_x,
-                       calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl, continue_transformation,
-                       print_iter_index):
+cpdef r_algorithm_B_form(func, double[:] x0, weights, grad, double beta, step_method, step_method_kwargs,
+                         double grad_epsilon, double calc_epsilon_x, double calc_epsilon_grad, double step_epsilon,
+                         long iter_lim, short return_grads, short tqdm_fl, short continue_transformation,
+                         short print_iter_index):
     x_current, x_next, matrix_B, grad_current, grad_next = \
         x0.copy(), x0.copy(), np.eye(x0.size, x0.size), \
-        np.random.rand(x0.size), grad(x0, func, epsilon=grad_epsilon)
+        np.random.rand(x0.size), grad(x0, func, grad_epsilon)
     step_defining_algorithms = {'argmin': step_argmin, 'func': step_func, 'reduction': step_reduction,
                                 'adaptive': step_adaptive, 'adaptive_alternative': step_adaptive_alternative}
     continuing_step_methods = ['argmin', 'reduction', 'adaptive', 'adaptive_alternative']
@@ -581,11 +583,11 @@ def r_algorithm_B_form(func, x0, grad, beta, step_method, step_method_kwargs, gr
             matrix_B = matrix_B_transformation(matrix_B, grad_current, grad_next, beta)
             continue
         x_current, grad_current = x_next.copy(), grad_next.copy()
-        x_next = x_current - step_current * np.dot(matrix_B, xi_current)
+        x_next = x_current - weights * step_current * np.dot(matrix_B, xi_current)
         # print(x_next)
         # print(func(x_next))
         results.append(x_next.copy())
-        grad_next = grad(x_next, func, epsilon=grad_epsilon)
+        grad_next = grad(x_next, func, grad_epsilon)
         grads.append(grad_next.copy())
         if linalg.norm(x_next - x_current) < calc_epsilon_x or linalg.norm(grad_next) < calc_epsilon_grad:
             break
@@ -593,208 +595,6 @@ def r_algorithm_B_form(func, x0, grad, beta, step_method, step_method_kwargs, gr
     if return_grads:
         return np.array(results), np.array(grads)
     return np.array(results)
-
-
-def r_algorithm_B_form_double(func_1, func_2, x0_1, x0_2, grad_1, grad_2, beta, step_method, step_method_kwargs,
-                              grad_epsilon, calc_epsilon_x, calc_epsilon_grad, step_epsilon, iter_lim,
-                              return_grads, tqdm_fl, continue_transformation, print_iter_index):
-
-    x_1_current, x_1_next, matrix_B_1, grad_1_current, grad_1_next = \
-        x0_1.copy(), x0_1.copy(), np.eye(x0_1.size, x0_1.size), np.random.rand(x0_1.size),\
-        grad_1(x0_1, func_1, epsilon=grad_epsilon)
-    x_2_current, x_2_next, matrix_B_2, grad_2_current, grad_2_next = \
-        x0_2.copy(), x0_2.copy(), np.eye(x0_2.size, x0_2.size), np.random.rand(x0_2.size),\
-        grad_2(x0_2, func_2, epsilon=grad_epsilon)
-
-    step_defining_algorithms = {'argmin': step_argmin, 'func': step_func, 'reduction': step_reduction,
-                                'adaptive': step_adaptive, 'adaptive_alternative': step_adaptive_alternative}
-    continuing_step_methods = ['argmin', 'reduction', 'adaptive', 'adaptive_alternative']
-
-    step_method_kwargs['step_lim'] = iter_lim
-    step_method_kwargs['grad_epsilon'] = grad_epsilon
-
-    results_1 = [x_1_next.copy()]
-    grads_1 = [grad_1_next.copy()]
-
-    results_2 = [x_2_next.copy()]
-    grads_2 = [grad_2_next.copy()]
-
-    if tqdm_fl:
-        iterations = tqdm(range(iter_lim))
-    else:
-        iterations = range(iter_lim)
-
-    if 'default_step' in step_method_kwargs:
-        default_step_1, default_step_2 = step_method_kwargs['default_step'], step_method_kwargs['default_step']
-
-    for k in iterations:
-
-        if print_iter_index:
-            print(k)
-
-        xi_1_current = np.dot(matrix_B_1.T, grad_1_next)
-        xi_1_current = xi_1_current / linalg.norm(xi_1_current)
-
-        xi_2_current = np.dot(matrix_B_2.T, grad_2_next)
-        xi_2_current = xi_2_current / linalg.norm(xi_2_current)
-
-        step_method_kwargs['func'] = func_1
-        step_method_kwargs['grad'] = grad_1
-        step_method_kwargs['x_current'] = x_1_next
-        step_method_kwargs['direction'] = np.dot(matrix_B_1, xi_1_current)
-        step_method_kwargs['step_index'] = k
-        if 'default_step' in step_method_kwargs:
-            step_method_kwargs['default_step'] = default_step_1
-        step_1_current = (step_defining_algorithms.get(step_method))(step_method_kwargs)
-
-        step_method_kwargs['func'] = func_2
-        step_method_kwargs['grad'] = grad_2
-        step_method_kwargs['x_current'] = x_2_next
-        step_method_kwargs['direction'] = np.dot(matrix_B_2, xi_2_current)
-        step_method_kwargs['step_index'] = k
-        if 'default_step' in step_method_kwargs:
-            step_method_kwargs['default_step'] = default_step_2
-        step_2_current = (step_defining_algorithms.get(step_method))(step_method_kwargs)
-
-        if isinstance(step_1_current, tuple):
-            step_1_current, default_step_1 = step_1_current
-
-        if isinstance(step_2_current, tuple):
-            step_2_current, default_step_2 = step_2_current
-
-        if (np.abs(step_1_current) < step_epsilon or np.abs(step_2_current) < step_epsilon) and \
-                step_method in continuing_step_methods and continue_transformation:
-
-            matrix_B_1 = matrix_B_transformation(matrix_B_1, grad_1_current, grad_1_next, beta)
-            matrix_B_2 = matrix_B_transformation(matrix_B_2, grad_2_current, grad_2_next, beta)
-            continue
-
-        x_1_current, grad_1_current = x_1_next.copy(), grad_1_next.copy()
-        x_1_next = x_1_current - step_1_current * np.dot(matrix_B_1, xi_1_current)
-        results_1.append(x_1_next.copy())
-        grad_1_next = grad_1(x_1_next, func_1, epsilon=grad_epsilon)
-        grads_1.append(grad_1_next.copy())
-
-        x_2_current, grad_2_current = x_2_next.copy(), grad_2_next.copy()
-        x_2_next = x_2_current - step_2_current * np.dot(matrix_B_2, xi_2_current)
-        results_2.append(x_2_next.copy())
-        grad_2_next = grad_2(x_2_next, func_2, epsilon=grad_epsilon)
-        grads_2.append(grad_2_next.copy())
-
-        if linalg.norm(np.concatenate((x_1_next, x_2_next)) -
-                       np.concatenate((x_1_current, x_2_current))) < calc_epsilon_x or \
-           linalg.norm(np.concatenate((grad_1_next, grad_2_next))) < calc_epsilon_grad:
-            break
-
-        matrix_B_1 = matrix_B_transformation(matrix_B_1, grad_1_current, grad_1_next, beta)
-        matrix_B_2 = matrix_B_transformation(matrix_B_2, grad_2_current, grad_2_next, beta)
-
-    if return_grads:
-        return np.array(results_1), np.array(results_2), np.array(grads_1), np.array(grads_2)
-
-    return np.array(results_1), np.array(results_2)
-
-
-def r_algorithm_B_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, beta, step_method, step_method_kwargs,
-                                   grad_epsilon, calc_epsilon_x, calc_epsilon_grad, step_epsilon, iter_lim,
-                                   return_grads, tqdm_fl, continue_transformation, print_iter_index):
-
-    x_1_current, x_1_next, matrix_B_1, grad_1_current, grad_1_next = \
-        x0_1.copy(), x0_1.copy(), np.eye(x0_1.size, x0_1.size), np.random.rand(x0_1.size),\
-        grad_1(x0_1, lambda x: func_1(x, x0_2), epsilon=grad_epsilon)
-    x_2_current, x_2_next, matrix_B_2, grad_2_current, grad_2_next = \
-        x0_2.copy(), x0_2.copy(), np.eye(x0_2.size, x0_2.size), np.random.rand(x0_2.size),\
-        grad_2(x0_2, lambda x: func_2(x0_1, x), epsilon=grad_epsilon)
-
-    step_defining_algorithms = {'argmin': step_argmin, 'func': step_func, 'reduction': step_reduction,
-                                'adaptive': step_adaptive, 'adaptive_alternative': step_adaptive_alternative}
-    continuing_step_methods = ['argmin', 'reduction', 'adaptive', 'adaptive_alternative']
-
-    step_method_kwargs['step_lim'] = iter_lim
-    step_method_kwargs['grad_epsilon'] = grad_epsilon
-
-    results_1 = [x_1_next.copy()]
-    grads_1 = [grad_1_next.copy()]
-
-    results_2 = [x_2_next.copy()]
-    grads_2 = [grad_2_next.copy()]
-
-    if tqdm_fl:
-        iterations = tqdm(range(iter_lim))
-    else:
-        iterations = range(iter_lim)
-
-    if 'default_step' in step_method_kwargs:
-        default_step_1, default_step_2 = step_method_kwargs['default_step'], step_method_kwargs['default_step']
-
-    for k in iterations:
-
-        if print_iter_index:
-            print(k)
-
-        xi_1_current = np.dot(matrix_B_1.T, grad_1_next)
-        xi_1_current = xi_1_current / linalg.norm(xi_1_current)
-
-        xi_2_current = np.dot(matrix_B_2.T, grad_2_next)
-        xi_2_current = xi_2_current / linalg.norm(xi_2_current)
-
-        step_method_kwargs['func'] = lambda x: func_1(x, x_2_next)
-        step_method_kwargs['grad'] = grad_1
-        step_method_kwargs['x_current'] = x_1_next
-        step_method_kwargs['direction'] = np.dot(matrix_B_1, xi_1_current)
-        step_method_kwargs['step_index'] = k
-        if 'default_step' in step_method_kwargs:
-            step_method_kwargs['default_step'] = default_step_1
-        step_1_current = (step_defining_algorithms.get(step_method))(step_method_kwargs)
-
-        step_method_kwargs['func'] = lambda x: func_2(x_1_next, x)
-        step_method_kwargs['grad'] = grad_2
-        step_method_kwargs['x_current'] = x_2_next
-        step_method_kwargs['direction'] = np.dot(matrix_B_2, xi_2_current)
-        step_method_kwargs['step_index'] = k
-        if 'default_step' in step_method_kwargs:
-            step_method_kwargs['default_step'] = default_step_2
-        step_2_current = (step_defining_algorithms.get(step_method))(step_method_kwargs)
-
-        if isinstance(step_1_current, tuple):
-            step_1_current, default_step_1 = step_1_current
-
-        if isinstance(step_2_current, tuple):
-            step_2_current, default_step_2 = step_2_current
-
-        if (np.abs(step_1_current) < step_epsilon or np.abs(step_2_current) < step_epsilon) and \
-                step_method in continuing_step_methods and continue_transformation:
-
-            matrix_B_1 = matrix_B_transformation(matrix_B_1, grad_1_current, grad_1_next, beta)
-            matrix_B_2 = matrix_B_transformation(matrix_B_2, grad_2_current, grad_2_next, beta)
-            continue
-
-        x_1_current, grad_1_current = x_1_next.copy(), grad_1_next.copy()
-        x_1_next = x_1_current - step_1_current * np.dot(matrix_B_1, xi_1_current)
-        results_1.append(x_1_next.copy())
-
-        x_2_current, grad_2_current = x_2_next.copy(), grad_2_next.copy()
-        x_2_next = x_2_current - step_2_current * np.dot(matrix_B_2, xi_2_current)
-        results_2.append(x_2_next.copy())
-
-        grad_1_next = grad_1(x_1_next, lambda x: func_1(x, x_2_next), epsilon=grad_epsilon)
-        grads_1.append(grad_1_next.copy())
-
-        grad_2_next = grad_2(x_2_next, lambda x: func_2(x_1_next, x), epsilon=grad_epsilon)
-        grads_2.append(grad_2_next.copy())
-
-        if linalg.norm(np.concatenate((x_1_next, x_2_next)) -
-                       np.concatenate((x_1_current, x_2_current))) < calc_epsilon_x or \
-           linalg.norm(np.concatenate((grad_1_next, grad_2_next))) < calc_epsilon_grad:
-            break
-
-        matrix_B_1 = matrix_B_transformation(matrix_B_1, grad_1_current, grad_1_next, beta)
-        matrix_B_2 = matrix_B_transformation(matrix_B_2, grad_2_current, grad_2_next, beta)
-
-    if return_grads:
-        return np.array(results_1), np.array(results_2), np.array(grads_1), np.array(grads_2)
-
-    return np.array(results_1), np.array(results_2)
 
 
 # Преобразование матрицы H
@@ -807,11 +607,13 @@ def r_algorithm_B_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
 # beta - коэффициент растяжения пространства
 # ----------------------------------------------------------------------------------------------------------------------
 # Возвращаемое значение: преобразованная матрица H
-def matrix_H_transformation(matrix_H, grad_current, grad_next, beta):
-    r_vector = grad_next - grad_current
-    return matrix_H + (beta * beta - 1) * np.dot(np.dot(matrix_H, r_vector).reshape(r_vector.size, 1),
-                                                 np.dot(matrix_H, r_vector).reshape(1, r_vector.size)) / \
-           np.dot(np.dot(r_vector, matrix_H), r_vector)
+cpdef double[:, :] matrix_H_transformation(double[:, :] matrix_H, double[:] grad_current, double[:] grad_next,
+                                           double beta):
+    r_vector = np.asarray(grad_next) - np.asarray(grad_current)
+    return matrix_H + (beta * beta - 1) \
+                      * np.dot(np.dot(matrix_H, r_vector).reshape(r_vector.size, 1),
+                               np.dot(matrix_H, r_vector).reshape(1, r_vector.size)) \
+                      / np.dot(np.dot(r_vector, matrix_H), r_vector)
 
 
 # Реализация r-алгоритма в H-форме
@@ -843,12 +645,13 @@ def matrix_H_transformation(matrix_H, grad_current, grad_next, beta):
 # 1) если return_grads = True, то возвращаемое значение - tuple, первый элемент которой - list всех точек приближения,
 # второй - list всех субградиентов в соответствующих точках
 # 2) если return_grads = False, то возвращаемое значение - list всех точек приближения
-def r_algorithm_H_form(func, x0, grad, beta, step_method, step_method_kwargs, grad_epsilon, calc_epsilon_x,
-                       calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl, continue_transformation,
-                       print_iter_index):
+cpdef r_algorithm_H_form(func, double[:] x0, weights, grad, double beta, step_method, step_method_kwargs,
+                         double grad_epsilon, double calc_epsilon_x, double calc_epsilon_grad, double step_epsilon,
+                         long iter_lim, short return_grads, short tqdm_fl, short continue_transformation,
+                         short print_iter_index):
     x_current, x_next, matrix_H, grad_current, grad_next = \
         x0.copy(), x0.copy(), np.eye(x0.size, x0.size), \
-        np.random.rand(x0.size), grad(x0, func, epsilon=grad_epsilon)
+        np.random.rand(x0.size), grad(x0, func, grad_epsilon)
     step_defining_algorithms = {'argmin': step_argmin, 'func': step_func, 'reduction': step_reduction,
                                 'adaptive': step_adaptive, 'adaptive_alternative': step_adaptive_alternative}
     continuing_step_methods = ['argmin', 'reduction', 'adaptive', 'adaptive_alternative']
@@ -876,10 +679,10 @@ def r_algorithm_H_form(func, x0, grad, beta, step_method, step_method_kwargs, gr
             matrix_H = matrix_H_transformation(matrix_H, grad_current, grad_next, beta)
             continue
         x_current, grad_current = x_next.copy(), grad_next.copy()
-        x_next = x_current - step_current * np.dot(matrix_H, grad_current) / \
+        x_next = x_current - weights * step_current * np.dot(matrix_H, grad_current) / \
                              np.sqrt(np.dot(np.dot(matrix_H, grad_current), grad_current))
         results.append(x_next.copy())
-        grad_next = grad(x_next, func, epsilon=grad_epsilon)
+        grad_next = grad(x_next, func, grad_epsilon)
         grads.append(grad_next.copy())
         if linalg.norm(x_next - x_current) < calc_epsilon_x or linalg.norm(grad_next) < calc_epsilon_grad:
             break
@@ -887,226 +690,6 @@ def r_algorithm_H_form(func, x0, grad, beta, step_method, step_method_kwargs, gr
     if return_grads:
         return np.array(results), np.array(grads)
     return np.array(results)
-
-
-def r_algorithm_H_form_double(func_1, func_2, x0_1, x0_2, grad_1, grad_2, beta, step_method, step_method_kwargs,
-                              grad_epsilon, calc_epsilon_x, calc_epsilon_grad, step_epsilon, iter_lim,
-                              return_grads, tqdm_fl, continue_transformation, print_iter_index):
-
-    x_1_current, x_1_next, matrix_H_1, grad_1_current, grad_1_next = \
-        x0_1.copy(), x0_1.copy(), np.eye(x0_1.size, x0_1.size), np.random.rand(x0_1.size),\
-        grad_1(x0_1, func_1, epsilon=grad_epsilon)
-    x_2_current, x_2_next, matrix_H_2, grad_2_current, grad_2_next = \
-        x0_2.copy(), x0_2.copy(), np.eye(x0_2.size, x0_2.size), np.random.rand(x0_2.size),\
-        grad_2(x0_2, func_2, epsilon=grad_epsilon)
-
-    step_defining_algorithms = {'argmin': step_argmin, 'func': step_func, 'reduction': step_reduction,
-                                'adaptive': step_adaptive, 'adaptive_alternative': step_adaptive_alternative}
-    continuing_step_methods = ['argmin', 'reduction', 'adaptive', 'adaptive_alternative']
-
-    step_method_kwargs['step_lim'] = iter_lim
-    step_method_kwargs['grad_epsilon'] = grad_epsilon
-
-    results_1 = [x_1_next.copy()]
-    grads_1 = [grad_1_next.copy()]
-
-    results_2 = [x_2_next.copy()]
-    grads_2 = [grad_2_next.copy()]
-
-    if tqdm_fl:
-        iterations = tqdm(range(iter_lim))
-    else:
-        iterations = range(iter_lim)
-
-    if 'default_step' in step_method_kwargs:
-        default_step_1, default_step_2 = step_method_kwargs['default_step'], step_method_kwargs['default_step']
-
-    for k in iterations:
-
-        if print_iter_index:
-            print(k)
-
-        step_method_kwargs['func'] = func_1
-        step_method_kwargs['grad'] = grad_1
-        step_method_kwargs['x_current'] = x_1_next
-        step_method_kwargs['direction'] = np.dot(matrix_H_1, grad_1_next) / \
-                                          np.sqrt(np.dot(np.dot(matrix_H_1, grad_1_next), grad_1_next))
-        step_method_kwargs['step_index'] = k
-        if 'default_step' in step_method_kwargs:
-            step_method_kwargs['default_step'] = default_step_1
-        step_1_current = (step_defining_algorithms.get(step_method))(step_method_kwargs)
-
-        step_method_kwargs['func'] = func_2
-        step_method_kwargs['grad'] = grad_2
-        step_method_kwargs['x_current'] = x_2_next
-        step_method_kwargs['direction'] = np.dot(matrix_H_2, grad_2_next) / \
-                                          np.sqrt(np.dot(np.dot(matrix_H_2, grad_2_next), grad_2_next))
-        step_method_kwargs['step_index'] = k
-        if 'default_step' in step_method_kwargs:
-            step_method_kwargs['default_step'] = default_step_2
-        step_2_current = (step_defining_algorithms.get(step_method))(step_method_kwargs)
-
-        if isinstance(step_1_current, tuple):
-            step_1_current, default_step_1 = step_1_current
-
-        if isinstance(step_2_current, tuple):
-            step_2_current, default_step_2 = step_2_current
-
-        if (np.abs(step_1_current) < step_epsilon or np.abs(step_2_current) < step_epsilon) and \
-                step_method in continuing_step_methods and continue_transformation:
-
-            matrix_H_1 = matrix_H_transformation(matrix_H_1, grad_1_current, grad_1_next, beta)
-            matrix_H_2 = matrix_H_transformation(matrix_H_2, grad_2_current, grad_2_next, beta)
-            continue
-
-        x_1_current, grad_1_current = x_1_next.copy(), grad_1_next.copy()
-        x_1_next = x_1_current - step_1_current * np.dot(matrix_H_1, grad_1_next) / \
-                   np.sqrt(np.dot(np.dot(matrix_H_1, grad_1_next), grad_1_next))
-        results_1.append(x_1_next.copy())
-        grad_1_next = grad_1(x_1_next, func_1, epsilon=grad_epsilon)
-        grads_1.append(grad_1_next.copy())
-
-        x_2_current, grad_2_current = x_2_next.copy(), grad_2_next.copy()
-        x_2_next = x_2_current - step_2_current * np.dot(matrix_H_2, grad_2_next) /\
-                   np.sqrt(np.dot(np.dot(matrix_H_2, grad_2_next), grad_2_next))
-        results_2.append(x_2_next.copy())
-        grad_2_next = grad_2(x_2_next, func_2, epsilon=grad_epsilon)
-        grads_2.append(grad_2_next.copy())
-
-        if linalg.norm(np.concatenate((x_1_next, x_2_next)) -
-                       np.concatenate((x_1_current, x_2_current))) < calc_epsilon_x or \
-           linalg.norm(np.concatenate((grad_1_next, grad_2_next))) < calc_epsilon_grad:
-            break
-
-        matrix_H_1 = matrix_H_transformation(matrix_H_1, grad_1_current, grad_1_next, beta)
-        matrix_H_2 = matrix_H_transformation(matrix_H_2, grad_2_current, grad_2_next, beta)
-
-    if return_grads:
-        return np.array(results_1), np.array(results_2), np.array(grads_1), np.array(grads_2)
-
-    return np.array(results_1), np.array(results_2)
-
-
-def r_algorithm_H_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, beta, step_method, step_method_kwargs,
-                                   grad_epsilon, calc_epsilon_x, calc_epsilon_grad, step_epsilon, iter_lim,
-                                   return_grads, tqdm_fl, continue_transformation, print_iter_index):
-
-    x_1_current, x_1_next, matrix_H_1, grad_1_current, grad_1_next = \
-        x0_1.copy(), x0_1.copy(), np.eye(x0_1.size, x0_1.size), np.random.rand(x0_1.size),\
-        grad_1(x0_1, lambda x: func_1(x, x0_2), epsilon=grad_epsilon)
-
-    x_2_current, x_2_next, matrix_H_2, grad_2_current, grad_2_next = \
-        x0_2.copy(), x0_2.copy(), np.eye(x0_2.size, x0_2.size), np.random.rand(x0_2.size),\
-        grad_2(x0_2, lambda x: func_2(x0_1, x), epsilon=grad_epsilon)
-
-    step_defining_algorithms = {'argmin': step_argmin, 'func': step_func, 'reduction': step_reduction,
-                                'adaptive': step_adaptive, 'adaptive_alternative': step_adaptive_alternative}
-    continuing_step_methods = ['argmin', 'reduction', 'adaptive', 'adaptive_alternative']
-
-    step_method_kwargs['step_lim'] = iter_lim
-    step_method_kwargs['grad_epsilon'] = grad_epsilon
-
-    results_1 = [x_1_next.copy()]
-    grads_1 = [grad_1_next.copy()]
-
-    results_2 = [x_2_next.copy()]
-    grads_2 = [grad_2_next.copy()]
-
-    if tqdm_fl:
-        iterations = tqdm(range(iter_lim))
-    else:
-        iterations = range(iter_lim)
-
-    if 'default_step' in step_method_kwargs:
-        default_step_1, default_step_2 = step_method_kwargs['default_step'], step_method_kwargs['default_step']
-
-    for k in iterations:
-
-        if print_iter_index:
-            print(k)
-            print(x_1_next)
-            print(x_2_next)
-            print('Вычисление шага №1')
-
-        step_method_kwargs['func'] = lambda x: func_1(x, x_2_next)
-        step_method_kwargs['grad'] = grad_1
-        step_method_kwargs['x_current'] = x_1_next
-        step_method_kwargs['direction'] = np.dot(matrix_H_1, grad_1_next) / \
-                                          np.sqrt(np.dot(np.dot(matrix_H_1, grad_1_next), grad_1_next))
-        step_method_kwargs['step_index'] = k
-        if 'default_step' in step_method_kwargs:
-            step_method_kwargs['default_step'] = default_step_1
-        step_1_current = (step_defining_algorithms.get(step_method))(step_method_kwargs)
-
-        if print_iter_index:
-            print('Вычисление шага №2')
-
-        step_method_kwargs['func'] = lambda x: func_2(x_1_next, x)
-        step_method_kwargs['grad'] = grad_2
-        step_method_kwargs['x_current'] = x_2_next
-        step_method_kwargs['direction'] = np.dot(matrix_H_2, grad_2_next) / \
-                                          np.sqrt(np.dot(np.dot(matrix_H_2, grad_2_next), grad_2_next))
-        step_method_kwargs['step_index'] = k
-        if 'default_step' in step_method_kwargs:
-            step_method_kwargs['default_step'] = default_step_2
-        step_2_current = (step_defining_algorithms.get(step_method))(step_method_kwargs)
-
-        if isinstance(step_1_current, tuple):
-            step_1_current, default_step_1 = step_1_current
-
-        if isinstance(step_2_current, tuple):
-            step_2_current, default_step_2 = step_2_current
-
-        if (np.abs(step_1_current) < step_epsilon or np.abs(step_2_current) < step_epsilon) and \
-                step_method in continuing_step_methods and continue_transformation:
-
-            matrix_H_1 = matrix_H_transformation(matrix_H_1, grad_1_current, grad_1_next, beta)
-            matrix_H_2 = matrix_H_transformation(matrix_H_2, grad_2_current, grad_2_next, beta)
-            continue
-
-        if print_iter_index:
-            print('Вычисление приближения №1')
-
-        x_1_current, grad_1_current = x_1_next.copy(), grad_1_next.copy()
-        x_1_next = x_1_current - step_1_current * np.dot(matrix_H_1, grad_1_next) / \
-                   np.sqrt(np.dot(np.dot(matrix_H_1, grad_1_next), grad_1_next))
-        results_1.append(x_1_next.copy())
-
-        if print_iter_index:
-            print('Вычисление приближения №2')
-
-        x_2_current, grad_2_current = x_2_next.copy(), grad_2_next.copy()
-        x_2_next = x_2_current - step_2_current * np.dot(matrix_H_2, grad_2_next) /\
-                   np.sqrt(np.dot(np.dot(matrix_H_2, grad_2_next), grad_2_next))
-        results_2.append(x_2_next.copy())
-
-        if print_iter_index:
-            print('Вычисление градиента №1')
-
-        grad_1_next = grad_1(x_1_next, lambda x: func_1(x, x_2_next), epsilon=grad_epsilon)
-        grads_1.append(grad_1_next.copy())
-
-        if print_iter_index:
-            print('Вычисление градиента №2')
-
-        grad_2_next = grad_2(x_2_next, lambda x: func_2(x_1_next, x), epsilon=grad_epsilon)
-        grads_2.append(grad_2_next.copy())
-
-        if linalg.norm(np.concatenate((x_1_next, x_2_next)) -
-                       np.concatenate((x_1_current, x_2_current))) < calc_epsilon_x or \
-           linalg.norm(np.concatenate((grad_1_next, grad_2_next))) < calc_epsilon_grad:
-            break
-
-        if print_iter_index:
-            print('Преобразование матриц')
-
-        matrix_H_1 = matrix_H_transformation(matrix_H_1, grad_1_current, grad_1_next, beta)
-        matrix_H_2 = matrix_H_transformation(matrix_H_2, grad_2_current, grad_2_next, beta)
-
-    if return_grads:
-        return np.array(results_1), np.array(results_2), np.array(grads_1), np.array(grads_2)
-
-    return np.array(results_1), np.array(results_2)
 
 
 # Вспомогательный метод, осуществляющий проверку правильно ли введен тип задачи оптимизации (мин. или макс.)
@@ -1118,7 +701,7 @@ def r_algorithm_H_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
 # 1) если задача на минимум: 1.0
 # 2) если задача на максимум: -1.0
 # 3) исключение, если target_dual задано в неправильном формате
-def target_input(target):
+cpdef double target_input(target):
     if target.lower() == "min" or target.lower() == "minimum":
         return 1.0
     elif target.lower() == "max" or target.lower() == "maximum":
@@ -1133,8 +716,16 @@ def target_input(target):
 # x0 - начальное приближение
 # ----------------------------------------------------------------------------------------------------------------------
 # Возвращаемое значение: неглубокая копия x0, преобразованная к типу numpy.ndarray
-def x0_input(x0):
+cpdef double[:] x0_input(double[:] x0):
     return np.array(x0).copy()
+
+
+# Вспомагательная функция, генерирующая целевую функцию r-алгоритма
+def create_lambda_r_algorithm(func, sign, args):
+    if args is None:
+        return lambda x: sign * func(x)
+    else:
+        return lambda x: sign * func(x, args)
 
 
 # Функция, принимающая начальные параметры, анализирующая их, и вызывающая указанную версию r-алгоритма
@@ -1175,13 +766,15 @@ def x0_input(x0):
 # 1) если return_grads = True, то возвращаемое значение - tuple, первый элемент которой - list всех точек приближения,
 # второй - list всех субградиентов в соответствующих точках
 # 2) если return_grads = False, то возвращаемое значение - list всех точек приближения
-def r_algorithm(func, x0, args=None, grad=middle_grad_non_matrix, form='B', beta=0.5, target='min',
-                grad_epsilon=1e-8, calc_epsilon_x=1e-10, calc_epsilon_grad=1e-10, step_epsilon=1e-15, iter_lim=1000000,
-                return_grads=False, tqdm_fl=False, continue_transformation=True, print_iter_index=False, **kwargs):
+cpdef r_algorithm(func, double[:] x0, weights, args=None, grad=middle_grad_non_matrix, form='B',
+                  double beta=0.5, target='min', double grad_epsilon=1e-8, double calc_epsilon_x=1e-10,
+                  double calc_epsilon_grad=1e-10, double step_epsilon=1e-15, long iter_lim=1000000,
+                  short return_grads=0, short tqdm_fl=0, short continue_transformation=1, short print_iter_index=0,
+                  kwargs=None):
     sign = target_input(target)
     x0 = x0_input(x0)
     step_method_kwargs = {}
-    if len(kwargs) > 0:
+    if kwargs is not None:
         for key in kwargs.keys():
             step_method_kwargs[key] = kwargs.get(key)
     else:
@@ -1193,112 +786,19 @@ def r_algorithm(func, x0, args=None, grad=middle_grad_non_matrix, form='B', beta
         step_method_kwargs['reduction_epsilon'] = 1e-15
     step_method_kwargs['step_epsilon'] = step_epsilon
     step_method = step_method_kwargs.get('step_method')
-    if args is None:
-        func_as_arg = lambda x: sign * func(x)
-    else:
-        func_as_arg = lambda x: sign * func(x, args)
+    func_as_arg = create_lambda_r_algorithm(func, sign, args)
     if 'H' in form:
-        return r_algorithm_H_form(func_as_arg, x0, grad, beta, step_method, step_method_kwargs,
+        return r_algorithm_H_form(func_as_arg, x0, weights, grad, beta, step_method, step_method_kwargs,
                                   grad_epsilon=grad_epsilon, calc_epsilon_x=calc_epsilon_x,
                                   calc_epsilon_grad=calc_epsilon_grad, step_epsilon=step_epsilon, iter_lim=iter_lim,
                                   return_grads=return_grads, tqdm_fl=tqdm_fl,
                                   continue_transformation=continue_transformation, print_iter_index=print_iter_index)
     else:
-        return r_algorithm_B_form(func_as_arg, x0, grad, beta, step_method, step_method_kwargs,
+        return r_algorithm_B_form(func_as_arg, x0, weights, grad, beta, step_method, step_method_kwargs,
                                   grad_epsilon=grad_epsilon, calc_epsilon_x=calc_epsilon_x,
                                   calc_epsilon_grad=calc_epsilon_grad, step_epsilon=step_epsilon, iter_lim=iter_lim,
                                   return_grads=return_grads, tqdm_fl=tqdm_fl,
                                   continue_transformation=continue_transformation, print_iter_index=print_iter_index)
-
-
-def r_algorithm_double(func_1, func_2, x0_1, x0_2, args_1=None, args_2=None, grad_1=middle_grad_non_matrix_pool,
-                       grad_2=middle_grad_non_matrix_pool, form='B', beta=0.5, target_1='min', target_2='min',
-                       grad_epsilon=1e-8, calc_epsilon_x=1e-10, calc_epsilon_grad=1e-10, step_epsilon=1e-15,
-                       iter_lim=1000000, return_grads=False, tqdm_fl=False, continue_transformation=True,
-                       print_iter_index=False, **kwargs):
-
-    sign_1, sign_2 = target_input(target_1), target_input(target_2)
-    x0_1, x0_2 = x0_input(x0_1), x0_input(x0_2)
-
-    step_method_kwargs = {}
-    if len(kwargs) > 0:
-        for key in kwargs.keys():
-            step_method_kwargs[key] = kwargs.get(key)
-    else:
-        step_method_kwargs['step_method'] = 'adaptive'
-        step_method_kwargs['default_step'] = 10.0
-        step_method_kwargs['step_red_mult'] = 0.5
-        step_method_kwargs['step_incr_mult'] = 1.2
-        step_method_kwargs['lim_num'] = 3
-        step_method_kwargs['reduction_epsilon'] = 1e-15
-    step_method_kwargs['step_epsilon'] = step_epsilon
-    step_method = step_method_kwargs.get('step_method')
-
-    if args_1 is None:
-        func_as_arg_1 = lambda x: sign_1 * func_1(x)
-    else:
-        func_as_arg_1 = lambda x: sign_1 * func_1(x, args_1)
-
-    if args_2 is None:
-        func_as_arg_2 = lambda x: sign_2 * func_2(x)
-    else:
-        func_as_arg_2 = lambda x: sign_2 * func_2(x, args_2)
-
-    if 'H' in form:
-        return r_algorithm_H_form_double(func_as_arg_1, func_as_arg_2, x0_1, x0_2, grad_1, grad_2, beta,
-                                         step_method, step_method_kwargs, grad_epsilon, calc_epsilon_x,
-                                         calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
-                                         continue_transformation, print_iter_index)
-    else:
-        return r_algorithm_B_form_double(func_as_arg_1, func_as_arg_2, x0_1, x0_2, grad_1, grad_2, beta,
-                                         step_method, step_method_kwargs, grad_epsilon, calc_epsilon_x,
-                                         calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
-                                         continue_transformation, print_iter_index)
-
-
-def r_algorithm_cooperative(func_1, func_2, x0_1, x0_2, args_1=None, args_2=None, grad_1=middle_grad_non_matrix_pool,
-                            grad_2=middle_grad_non_matrix_pool, form='B', beta=0.5, target_1='min', target_2='min',
-                            grad_epsilon=1e-8, calc_epsilon_x=1e-10, calc_epsilon_grad=1e-10, step_epsilon=1e-15,
-                            iter_lim=1000000, return_grads=False, tqdm_fl=False, continue_transformation=True,
-                            print_iter_index=False, **kwargs):
-
-    sign_1, sign_2 = target_input(target_1), target_input(target_2)
-    x0_1, x0_2 = x0_input(x0_1), x0_input(x0_2)
-
-    step_method_kwargs = {}
-    if len(kwargs) > 0:
-        for key in kwargs.keys():
-            step_method_kwargs[key] = kwargs.get(key)
-    else:
-        step_method_kwargs['step_method'] = 'adaptive'
-        step_method_kwargs['default_step'] = 10.0
-        step_method_kwargs['step_red_mult'] = 0.5
-        step_method_kwargs['step_incr_mult'] = 1.2
-        step_method_kwargs['lim_num'] = 3
-        step_method_kwargs['reduction_epsilon'] = 1e-15
-    step_method_kwargs['step_epsilon'] = step_epsilon
-    step_method = step_method_kwargs.get('step_method')
-
-    if args_1 is None:
-        func_as_arg_1 = lambda x, y: sign_1 * func_1(x, y)
-    else:
-        func_as_arg_1 = lambda x, y: sign_1 * func_1(x, y, args_1)
-
-    if args_2 is None:
-        func_as_arg_2 = lambda x, y: sign_2 * func_2(x, y)
-    else:
-        func_as_arg_2 = lambda x, y: sign_2 * func_2(x, y, args_2)
-
-    if 'H' in form:
-        return r_algorithm_H_form_cooperative(func_as_arg_1, func_as_arg_2, x0_1, x0_2, grad_1, grad_2, beta,
-                                              step_method, step_method_kwargs, grad_epsilon, calc_epsilon_x,
-                                              calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
-                                              continue_transformation, print_iter_index)
-    else:
-        return r_algorithm_B_form_cooperative(func_as_arg_1, func_as_arg_2, x0_1, x0_2, grad_1, grad_2, beta,
-                                              step_method, step_method_kwargs, grad_epsilon, calc_epsilon_x,
-                                              calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
-                                              continue_transformation, print_iter_index)
 
 
 # Вспомогательная функция, которая для заданной последовательности точек, возвращает точки, что отличаются от своей
@@ -1335,11 +835,21 @@ def feasible_region_indicator(x, g):
     return np.array(result, dtype=float)
 
 
+# Вспомагательная функция, генерирующая целевую функцию r-алгоритма в методе внутренней точки 1
+def create_lambda_interior_point_1(func, sign, args, g, r_k, k):
+    if args is None:
+        return lambda x: sign * func(x) - r_k(k) * np.array([np.log(-g[i](x)) for i in range(len(g))]).sum()
+    else:
+        return lambda x: lambda x: sign * func(x, args) -\
+                                   r_k(k) * np.array([np.log(-g[i](x)) for i in range(len(g))]).sum()
+
 # Метод внутренней точки с штрафными функциями вида -rk * sum(i=1, m, ln(-gi(x)))
-def r_algorithm_interior_point_1(func, x0, g, r_k, args=None, grad=middle_grad_non_matrix, form='B', beta=0.5,
-                                 target='min', grad_epsilon=1e-8, calc_epsilon_x=1e-10, calc_epsilon_grad=1e-10,
-                                 step_epsilon=1e-15, r_epsilon=1e-10, iter_lim=1000000, return_grads=False,
-                                 tqdm_fl=False, continue_transformation=True, print_iter_index=False, **kwargs):
+cpdef r_algorithm_interior_point_1(func, double[:] x0, weights, g, r_k, args=None,
+                                   grad=middle_grad_non_matrix, form='B', double beta=0.5,
+                                   target='min', double grad_epsilon=1e-8, double calc_epsilon_x=1e-10,
+                                   double calc_epsilon_grad=1e-10, double step_epsilon=1e-15, double r_epsilon=1e-10,
+                                   long iter_lim=1000000, short return_grads=0, short tqdm_fl=0,
+                                   short continue_transformation=1, short print_iter_index=0, kwargs=None):
     sign = target_input(target)
     x_current, x_next = np.random.rand(x0.size), x0_input(x0)
     k = 0
@@ -1349,21 +859,10 @@ def r_algorithm_interior_point_1(func, x0, g, r_k, args=None, grad=middle_grad_n
             print('Индекс итерации метода внутренней точки: %d' % k)
 
         x_current = x_next.copy()
-
-        if args is None:
-            x_next = r_algorithm(lambda x: sign * func(x) -
-                                           r_k(k) * np.array([np.log(-g[i](x)) for i in range(len(g))]).sum(),
-                                 x_current, None, grad, form, beta, 'min', grad_epsilon, calc_epsilon_x,
-                                 calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
-                                 continue_transformation,
-                                 print_iter_index, **kwargs)
-        else:
-            x_next = r_algorithm(lambda x: sign * func(x, args) -
-                                           r_k(k) * np.array([np.log(-g[i](x)) for i in range(len(g))]).sum(),
-                                 x_current, None, grad, form, beta, 'min', grad_epsilon, calc_epsilon_x,
-                                 calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
-                                 continue_transformation,
-                                 print_iter_index, **kwargs)
+        func_as_arg = create_lambda_interior_point_1(func, sign, args, g, r_k, k)
+        x_next = r_algorithm(func_as_arg, x_current, weights, None, grad, form, beta, 'min', grad_epsilon,
+                             calc_epsilon_x, calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
+                             continue_transformation, print_iter_index, kwargs)
 
         if type(x_next) is tuple:
             grads.append(x_next[1].copy())
@@ -1384,71 +883,20 @@ def r_algorithm_interior_point_1(func, x0, g, r_k, args=None, grad=middle_grad_n
     return np.array(results)
 
 
-def r_algorithm_interior_point_1_cooperative(func_1, func_2, x0_1, x0_2, g_1, g_2, r_k_1, r_k_2, args_1=None,
-                                             args_2=None, grad_1=middle_grad_non_matrix_pool,
-                                             grad_2=middle_grad_non_matrix_pool, form='B', beta=0.5, target_1='min',
-                                             target_2='min', grad_epsilon=1e-8, calc_epsilon_x=1e-10,
-                                             calc_epsilon_grad=1e-10, step_epsilon=1e-15, r_epsilon=1e-10,
-                                             iter_lim=1000000, return_grads=False, tqdm_fl=False,
-                                             continue_transformation=True, print_iter_index=False, **kwargs):
-
-    sign_1, sign_2 = target_input(target_1), target_input(target_2)
-    x_1_current, x_1_next = np.random.rand(x0_1.size), x0_input(x0_1)
-    x_2_current, x_2_next = np.random.rand(x0_2.size), x0_input(x0_2)
-    k = 0
-    results_1, grads_1 = [x_1_next.copy()], []
-    results_2, grads_2 = [x_2_next.copy()], []
-
-    while np.linalg.norm(np.concatenate((x_1_current, x_2_current)) - np.concatenate((x_1_next, x_2_next))) > \
-            calc_epsilon_x and r_k_1(k) > r_epsilon and r_k_2(k) > r_epsilon and k < iter_lim:
-
-        if print_iter_index:
-            print('Индекс итерации метода внутренней точки: %d' % k)
-
-        x_1_current, x_2_current = x_1_next.copy(), x_2_next.copy()
-
-        if args_1 is None:
-            func_as_arg_1 = lambda x, y: sign_1 * func_1(x, y) - r_k_1(k) * \
-                                         np.array([np.log(-g_1[i](x, y)) for i in range(len(g_1))]).sum()
-        else:
-            func_as_arg_1 = lambda x, y: sign_1 * func_1(x, y, args_1) - r_k_1(k) * \
-                                         np.array([np.log(-g_1[i](x, y)) for i in range(len(g_1))]).sum()
-
-        if args_2 is None:
-            func_as_arg_2 = lambda x, y: sign_2 * func_2(x, y) - r_k_2(k) * \
-                                         np.array([np.log(-g_2[i](x, y)) for i in range(len(g_2))]).sum()
-        else:
-            func_as_arg_2 = lambda x, y: sign_2 * func_2(x, y, args_2) - r_k_2(k) * \
-                                         np.array([np.log(-g_2[i](x, y)) for i in range(len(g_2))]).sum()
-
-        r_alg_result = r_algorithm_cooperative(func_as_arg_1, func_as_arg_2, x_1_current, x_2_current, None, None,
-                                               grad_1, grad_2, form, beta, 'min', 'min', grad_epsilon, calc_epsilon_x,
-                                               calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
-                                               continue_transformation, print_iter_index, **kwargs)
-
-        if len(r_alg_result) == 4:
-            grads_1.append(r_alg_result[2][-1])
-            grads_2.append(r_alg_result[3][-1])
-
-        x_1_next = r_alg_result[0][-1]
-        x_2_next = r_alg_result[1][-1]
-
-        results_1.append(x_1_next.copy())
-        results_2.append(x_2_next.copy())
-
-        k += 1
-
-    if return_grads:
-        return np.array(results_1), np.array(results_2), np.array(grads_1), np.array(grads_2)
-
-    return np.array(results_1), np.array(results_2)
-
+# Вспомагательная функция, генерирующая целевую функцию r-алгоритма в методе внутренней точки 2
+def create_lambda_interior_point_2(func, sign, args, g, r_k, k):
+    if args is None:
+        return lambda x: sign * func(x) - r_k(k) * np.array([1 / g[i](x) for i in range(len(g))]).sum()
+    else:
+        return lambda x: sign * func(x, args) - r_k(k) * np.array([1 / g[i](x) for i in range(len(g))]).sum()
 
 # Метод внутренней точки с штрафными функциями вида -rk * sum(i=1, m, 1 / gi(x))
-def r_algorithm_interior_point_2(func, x0, g, r_k, args=None, grad=middle_grad_non_matrix, form='B', beta=0.5,
-                                 target='min', grad_epsilon=1e-8, calc_epsilon_x=1e-10, calc_epsilon_grad=1e-10,
-                                 step_epsilon=1e-15, r_epsilon=1e-10, iter_lim=1000000, return_grads=False,
-                                 tqdm_fl=False, continue_transformation=True, print_iter_index=False, **kwargs):
+cpdef r_algorithm_interior_point_2(func, double[:] x0, weights, g, r_k, args=None,
+                                   grad=middle_grad_non_matrix, form='B', double beta=0.5,
+                                   target='min', double grad_epsilon=1e-8, double calc_epsilon_x=1e-10,
+                                   double calc_epsilon_grad=1e-10, double step_epsilon=1e-15, double r_epsilon=1e-10,
+                                   long iter_lim=1000000, short return_grads=0, short tqdm_fl=0,
+                                   short continue_transformation=1, short print_iter_index=0, kwargs=None):
     sign = target_input(target)
     x_current, x_next = np.random.rand(x0.size), x0_input(x0)
     k = 0
@@ -1458,24 +906,10 @@ def r_algorithm_interior_point_2(func, x0, g, r_k, args=None, grad=middle_grad_n
             print('Индекс итерации метода внутренней точки: %d' % k)
 
         x_current = x_next.copy()
-
-        print([g[i](x_current) for i in range(len(g))])
-
-        if args is None:
-            x_next = r_algorithm(lambda x: sign * func(x) -
-                                           r_k(k) * np.array([1 / g[i](x) for i in range(len(g))]).sum(),
-                                 x_current, None, grad, form, beta, 'min', grad_epsilon, calc_epsilon_x,
-                                 calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
-                                 continue_transformation,
-                                 print_iter_index, **kwargs)
-        else:
-            x_next = r_algorithm(lambda x: sign * func(x, args) -
-                                           r_k(k) * np.array([1 / g[i](x) for i in range(len(g))]).sum(),
-                                 x_current, None, grad, form, beta, 'min', grad_epsilon, calc_epsilon_x,
-                                 calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
-                                 continue_transformation,
-                                 print_iter_index, **kwargs)
-
+        func_as_arg = create_lambda_interior_point_2(func, sign, args, g, r_k, k)
+        x_next = r_algorithm(func_as_arg, x_current, weights, None, grad, form, beta, 'min', grad_epsilon,
+                             calc_epsilon_x, calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
+                             continue_transformation, print_iter_index, kwargs)
         if type(x_next) is tuple:
             grads.append(x_next[1].copy())
             x_next = x_next[0].copy()
@@ -1490,300 +924,15 @@ def r_algorithm_interior_point_2(func, x0, g, r_k, args=None, grad=middle_grad_n
         k += 1
         # if print_iter_index:
         #     print('---------------------------')
+
     if return_grads:
         return np.array(results), np.array(grads)
     return np.array(results)
-
-
-def r_algorithm_interior_point_2_cooperative(func_1, func_2, x0_1, x0_2, g_1, g_2, r_k_1, r_k_2, args_1=None,
-                                             args_2=None, grad_1=middle_grad_non_matrix_pool,
-                                             grad_2=middle_grad_non_matrix_pool, form='B', beta=0.5, target_1='min',
-                                             target_2='min', grad_epsilon=1e-8, calc_epsilon_x=1e-10,
-                                             calc_epsilon_grad=1e-10, step_epsilon=1e-15, r_epsilon=1e-10,
-                                             iter_lim=1000000, return_grads=False, tqdm_fl=False,
-                                             continue_transformation=True, print_iter_index=False, **kwargs):
-    sign_1, sign_2 = target_input(target_1), target_input(target_2)
-    x_1_current, x_1_next = np.random.rand(x0_1.size), x0_input(x0_1)
-    x_2_current, x_2_next = np.random.rand(x0_2.size), x0_input(x0_2)
-    k = 0
-    results_1, grads_1 = [x_1_next.copy()], []
-    results_2, grads_2 = [x_2_next.copy()], []
-
-    while np.linalg.norm(np.concatenate((x_1_current, x_2_current)) - np.concatenate((x_1_next, x_2_next))) > \
-            calc_epsilon_x and r_k_1(k) > r_epsilon and r_k_2(k) > r_epsilon and k < iter_lim:
-
-        if print_iter_index:
-            print('Индекс итерации метода внутренней точки: %d' % k)
-
-        x_1_current, x_2_current = x_1_next.copy(), x_2_next.copy()
-
-        if args_1 is None:
-            func_as_arg_1 = lambda x, y: sign_1 * func_1(x, y) - r_k_1(k) * \
-                                         np.array([1.0 / g_1[i](x, y) for i in range(len(g_1))]).sum()
-        else:
-            func_as_arg_1 = lambda x, y: sign_1 * func_1(x, y, args_1) - r_k_1(k) * \
-                                         np.array([1.0 / g_1[i](x, y) for i in range(len(g_1))]).sum()
-
-        if args_2 is None:
-            func_as_arg_2 = lambda x, y: sign_2 * func_2(x, y) - r_k_2(k) * \
-                                         np.array([1.0 / g_2[i](x, y) for i in range(len(g_2))]).sum()
-        else:
-            func_as_arg_2 = lambda x, y: sign_2 * func_2(x, y, args_2) - r_k_2(k) * \
-                                         np.array([1.0 / g_2[i](x, y) for i in range(len(g_2))]).sum()
-
-        r_alg_result = r_algorithm_cooperative(func_as_arg_1, func_as_arg_2, x_1_current, x_2_current, None, None,
-                                               grad_1, grad_2, form, beta, 'min', 'min', grad_epsilon, calc_epsilon_x,
-                                               calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
-                                               continue_transformation, print_iter_index, **kwargs)
-
-        if len(r_alg_result) == 4:
-            grads_1.append(r_alg_result[2][-1])
-            grads_2.append(r_alg_result[3][-1])
-
-        x_1_next = r_alg_result[0][-1]
-        x_2_next = r_alg_result[1][-1]
-
-        results_1.append(x_1_next.copy())
-        results_2.append(x_2_next.copy())
-
-        k += 1
-
-    if return_grads:
-        return np.array(results_1), np.array(results_2), np.array(grads_1), np.array(grads_2)
-
-    return np.array(results_1), np.array(results_2)
-
-
-# Метод внутренней точки с штрафными функциями вида rk * sum(i=1, m, max{-ln(-g[i](x)), 0})
-def r_algorithm_interior_point_3(func, x0, g, r_k, args=None, grad=middle_grad_non_matrix, form='B', beta=0.5,
-                                 target='min', grad_epsilon=1e-8, calc_epsilon_x=1e-10, calc_epsilon_grad=1e-10,
-                                 step_epsilon=1e-15, r_epsilon=1e-10, iter_lim=1000000, return_grads=False,
-                                 tqdm_fl=False, continue_transformation=True, print_iter_index=False, **kwargs):
-    sign = target_input(target)
-    x_current, x_next = np.random.rand(x0.size), x0_input(x0)
-    k = 0
-    results, grads = [x_next.copy()], []
-    while np.linalg.norm(x_current - x_next) > calc_epsilon_x and r_k(k) > r_epsilon and k < iter_lim:
-        if print_iter_index:
-            print('Индекс итерации метода внутренней точки: %d' % k)
-
-        x_current = x_next.copy()
-
-        print([g[i](x_current) for i in range(len(g))])
-
-        if args is None:
-            x_next = r_algorithm(lambda x: sign * func(x) + r_k(k) *
-                                           np.array([np.maximum(-np.log(-g[i](x)), 0.0) for i in range(len(g))]).sum(),
-                                 x_current, None, grad, form, beta, 'min', grad_epsilon, calc_epsilon_x,
-                                 calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
-                                 continue_transformation,
-                                 print_iter_index, **kwargs)
-        else:
-            x_next = r_algorithm(lambda x: sign * func(x, args) + r_k(k) *
-                                           np.array([np.maximum(-np.log(-g[i](x)), 0.0) for i in range(len(g))]).sum(),
-                                 x_current, None, grad, form, beta, 'min', grad_epsilon, calc_epsilon_x,
-                                 calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
-                                 continue_transformation,
-                                 print_iter_index, **kwargs)
-
-        if type(x_next) is tuple:
-            grads.append(x_next[1].copy())
-            x_next = x_next[0].copy()
-        x_next = x_next[-1].copy()
-        # if print_iter_index:
-        #     print(x_next)
-        #     if args is None:
-        #         print(func(x_next))
-        #     else:
-        #         print(func(x_next, args))
-        results.append(x_next.copy())
-        k += 1
-        # if print_iter_index:
-        #     print('---------------------------')
-    if return_grads:
-        return np.array(results), np.array(grads)
-    return np.array(results)
-
-
-def r_algorithm_interior_point_3_cooperative(func_1, func_2, x0_1, x0_2, g_1, g_2, r_k_1, r_k_2, args_1=None,
-                                             args_2=None, grad_1=middle_grad_non_matrix_pool,
-                                             grad_2=middle_grad_non_matrix_pool, form='B', beta=0.5, target_1='min',
-                                             target_2='min', grad_epsilon=1e-8, calc_epsilon_x=1e-10,
-                                             calc_epsilon_grad=1e-10, step_epsilon=1e-15, r_epsilon=1e-10,
-                                             iter_lim=1000000, return_grads=False, tqdm_fl=False,
-                                             continue_transformation=True, print_iter_index=False, **kwargs):
-    sign_1, sign_2 = target_input(target_1), target_input(target_2)
-    x_1_current, x_1_next = np.random.rand(x0_1.size), x0_input(x0_1)
-    x_2_current, x_2_next = np.random.rand(x0_2.size), x0_input(x0_2)
-    k = 0
-    results_1, grads_1 = [x_1_next.copy()], []
-    results_2, grads_2 = [x_2_next.copy()], []
-
-    while np.linalg.norm(np.concatenate((x_1_current, x_2_current)) - np.concatenate((x_1_next, x_2_next))) > \
-            calc_epsilon_x and r_k_1(k) > r_epsilon and r_k_2(k) > r_epsilon and k < iter_lim:
-
-        if print_iter_index:
-            print('Индекс итерации метода внутренней точки: %d' % k)
-
-        x_1_current, x_2_current = x_1_next.copy(), x_2_next.copy()
-
-        if args_1 is None:
-            func_as_arg_1 = lambda x, y: sign_1 * func_1(x, y) + \
-                                         r_k_1(k) * np.array([np.maximum(-np.log(-g_1[i](x, y)), 0.0)
-                                                              for i in range(len(g_1))]).sum()
-        else:
-            func_as_arg_1 = lambda x, y: sign_1 * func_1(x, y, args_1) + \
-                                         r_k_1(k) * np.array([np.maximum(-np.log(-g_1[i](x, y)), 0.0)
-                                                              for i in range(len(g_1))]).sum()
-
-        if args_2 is None:
-            func_as_arg_2 = lambda x, y: sign_2 * func_2(x, y) + \
-                                         r_k_2(k) * np.array([np.maximum(-np.log(-g_2[i](x, y)), 0.0)
-                                                              for i in range(len(g_2))]).sum()
-        else:
-            func_as_arg_2 = lambda x, y: sign_2 * func_2(x, y, args_2) + \
-                                         r_k_2(k) * np.array([np.maximum(-np.log(-g_2[i](x, y)), 0.0)
-                                                              for i in range(len(g_2))]).sum()
-
-        r_alg_result = r_algorithm_cooperative(func_as_arg_1, func_as_arg_2, x_1_current, x_2_current, None, None,
-                                               grad_1, grad_2, form, beta, 'min', 'min', grad_epsilon, calc_epsilon_x,
-                                               calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
-                                               continue_transformation, print_iter_index, **kwargs)
-
-        if len(r_alg_result) == 4:
-            grads_1.append(r_alg_result[2][-1])
-            grads_2.append(r_alg_result[3][-1])
-
-        x_1_next = r_alg_result[0][-1]
-        x_2_next = r_alg_result[1][-1]
-
-        results_1.append(x_1_next.copy())
-        results_2.append(x_2_next.copy())
-
-        k += 1
-
-    if return_grads:
-        return np.array(results_1), np.array(results_2), np.array(grads_1), np.array(grads_2)
-
-    return np.array(results_1), np.array(results_2)
-
-
-# Метод внутренней точки с штрафными функциями вида -S * sum(i=1, m, max{g[i](x), 0})
-def r_algorithm_interior_point_4(func, x0, g, r_k, args=None, grad=middle_grad_non_matrix, form='B', beta=0.5,
-                                 target='min', grad_epsilon=1e-8, calc_epsilon_x=1e-10, calc_epsilon_grad=1e-10,
-                                 step_epsilon=1e-15, r_epsilon=1e-10, iter_lim=1000000, return_grads=False,
-                                 tqdm_fl=False, continue_transformation=True, print_iter_index=False, **kwargs):
-    sign = target_input(target)
-    x_current, x_next = np.random.rand(x0.size), x0_input(x0)
-    k = 0
-    results, grads = [x_next.copy()], []
-    while np.linalg.norm(x_current - x_next) > calc_epsilon_x and r_k(k) > r_epsilon and k < iter_lim:
-        if print_iter_index:
-            print('Индекс итерации метода внутренней точки: %d' % k)
-
-        x_current = x_next.copy()
-
-        print([g[i](x_current) for i in range(len(g))])
-
-        if args is None:
-            x_next = r_algorithm(lambda x: sign * func(x) - r_k(k) *
-                                           np.array([np.maximum(g[i](x), 0.0) for i in range(len(g))]).sum(),
-                                 x_current, None, grad, form, beta, 'min', grad_epsilon, calc_epsilon_x,
-                                 calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
-                                 continue_transformation,
-                                 print_iter_index, **kwargs)
-        else:
-            x_next = r_algorithm(lambda x: sign * func(x, args) - r_k(k) *
-                                           np.array([np.maximum(g[i](x), 0.0) for i in range(len(g))]).sum(),
-                                 x_current, None, grad, form, beta, 'min', grad_epsilon, calc_epsilon_x,
-                                 calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
-                                 continue_transformation,
-                                 print_iter_index, **kwargs)
-
-        if type(x_next) is tuple:
-            grads.append(x_next[1].copy())
-            x_next = x_next[0].copy()
-        x_next = x_next[-1].copy()
-        # if print_iter_index:
-        #     print(x_next)
-        #     if args is None:
-        #         print(func(x_next))
-        #     else:
-        #         print(func(x_next, args))
-        results.append(x_next.copy())
-        k += 1
-        # if print_iter_index:
-        #     print('---------------------------')
-    if return_grads:
-        return np.array(results), np.array(grads)
-    return np.array(results)
-
-
-def r_algorithm_interior_point_4_cooperative(func_1, func_2, x0_1, x0_2, g_1, g_2, r_k_1, r_k_2, args_1=None,
-                                             args_2=None, grad_1=middle_grad_non_matrix_pool,
-                                             grad_2=middle_grad_non_matrix_pool, form='B', beta=0.5, target_1='min',
-                                             target_2='min', grad_epsilon=1e-8, calc_epsilon_x=1e-10,
-                                             calc_epsilon_grad=1e-10, step_epsilon=1e-15, r_epsilon=1e-10,
-                                             iter_lim=1000000, return_grads=False, tqdm_fl=False,
-                                             continue_transformation=True, print_iter_index=False, **kwargs):
-    sign_1, sign_2 = target_input(target_1), target_input(target_2)
-    x_1_current, x_1_next = np.random.rand(x0_1.size), x0_input(x0_1)
-    x_2_current, x_2_next = np.random.rand(x0_2.size), x0_input(x0_2)
-    k = 0
-    results_1, grads_1 = [x_1_next.copy()], []
-    results_2, grads_2 = [x_2_next.copy()], []
-
-    while np.linalg.norm(np.concatenate((x_1_current, x_2_current)) - np.concatenate((x_1_next, x_2_next))) > \
-            calc_epsilon_x and r_k_1(k) > r_epsilon and r_k_2(k) > r_epsilon and k < iter_lim:
-
-        if print_iter_index:
-            print('Индекс итерации метода внутренней точки: %d' % k)
-
-        x_1_current, x_2_current = x_1_next.copy(), x_2_next.copy()
-
-        if args_1 is None:
-            func_as_arg_1 = lambda x, y: sign_1 * func_1(x, y) - \
-                                         r_k_1(k) * np.array([np.maximum(g_1[i](x, y), 0.0)
-                                                              for i in range(len(g_1))]).sum()
-        else:
-            func_as_arg_1 = lambda x, y: sign_1 * func_1(x, y, args_1) - \
-                                         r_k_1(k) * np.array([np.maximum(g_1[i](x, y), 0.0)
-                                                              for i in range(len(g_1))]).sum()
-
-        if args_2 is None:
-            func_as_arg_2 = lambda x, y: sign_2 * func_2(x, y) - \
-                                         r_k_2(k) * np.array([np.maximum(g_2[i](x, y), 0.0)
-                                                              for i in range(len(g_2))]).sum()
-        else:
-            func_as_arg_2 = lambda x, y: sign_2 * func_2(x, y, args_2) - \
-                                         r_k_2(k) * np.array([np.maximum(g_2[i](x, y), 0.0)
-                                                              for i in range(len(g_2))]).sum()
-
-        r_alg_result = r_algorithm_cooperative(func_as_arg_1, func_as_arg_2, x_1_current, x_2_current, None, None,
-                                               grad_1, grad_2, form, beta, 'min', 'min', grad_epsilon, calc_epsilon_x,
-                                               calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
-                                               continue_transformation, print_iter_index, **kwargs)
-
-        if len(r_alg_result) == 4:
-            grads_1.append(r_alg_result[2][-1])
-            grads_2.append(r_alg_result[3][-1])
-
-        x_1_next = r_alg_result[0][-1]
-        x_2_next = r_alg_result[1][-1]
-
-        results_1.append(x_1_next.copy())
-        results_2.append(x_2_next.copy())
-
-        k += 1
-
-    if return_grads:
-        return np.array(results_1), np.array(results_2), np.array(grads_1), np.array(grads_2)
-
-    return np.array(results_1), np.array(results_2)
 
 
 # Функция вычисляющая двойной интеграл методом трапеций
-def trapezoid_double(integrand, x_a, x_b, y_a, y_b, grid_dot_num_x=10, grid_dot_num_y=10):
+cpdef double trapezoid_double(integrand, double x_a, double x_b, double y_a, double y_b,
+                             int grid_dot_num_x=10, int grid_dot_num_y=10):
     x_vals, y_vals = np.linspace(x_a, x_b, grid_dot_num_x + 1), np.linspace(y_a, y_b, grid_dot_num_y + 1)
     xx, yy = np.meshgrid(x_vals, y_vals)
     integrand_vals = integrand(xx, yy)

@@ -14,7 +14,7 @@ def dichotomy(func, a, b, a_lst=None, b_lst=None, target="min", epsilon=1e-10, i
     elif target.lower() == "max" or target.lower() == "maximum":
         sign = -1.0
     else:
-        raise ValueError("invalid value of \"target\"")
+        raise ValueError("invalid value of \"target_dual\"")
     counter, delta = 0, epsilon / 2
     if a_lst is not None:
         a_lst.append(a)
@@ -41,7 +41,7 @@ def gsection(func, a, b, a_lst=None, b_lst=None, target="min", epsilon=1e-10, it
     elif target.lower() == "max" or target.lower() == "maximum":
         sign = -1.0
     else:
-        raise ValueError("invalid value of \"target\"")
+        raise ValueError("invalid value of \"target_dual\"")
     multiplier1, multiplier2 = (3.0 - np.sqrt(5)) / 2.0, (np.sqrt(5) - 1.0) / 2.0
     dot1, dot2 = a + multiplier1 * (b - a), a + multiplier2 * (b - a)
     if a_lst is not None:
@@ -70,7 +70,7 @@ def fibonacci(func, a, b, a_lst=None, b_lst=None, target="min", epsilon=1e-10, i
     elif target.lower() == "max" or target.lower() == "maximum":
         sign = -1.0
     else:
-        raise ValueError("invalid value of \"target\"")
+        raise ValueError("invalid value of \"target_dual\"")
     if a_lst is not None:
         a_lst.append(a)
     if b_lst is not None:
@@ -103,7 +103,7 @@ def tangent(func, a, b, target="min", epsilon=1e-10, iter_lim=1000000, dx=1e-3):
     elif target.lower() == "max" or target.lower() == "maximum":
         sign = -1.0
     else:
-        raise ValueError("invalid value of \"target\"")
+        raise ValueError("invalid value of \"target_dual\"")
     counter = 0
     while (b - a) / 2.0 > epsilon and counter < iter_lim:
         x = (b * sign * derivative(func, b, dx=dx) - a * sign * derivative(func, a, dx=dx) +
@@ -126,7 +126,7 @@ def parabolic(func, a, b, target="min", epsilon=1e-10, iter_lim=1000000):
     elif target.lower() == "max" or target.lower() == "maximum":
         sign = -1.0
     else:
-        raise ValueError("invalid value of \"target\"")
+        raise ValueError("invalid value of \"target_dual\"")
     counter = 0
     x0, x1, x2 = a, (a + b) / 2.0, b
     while sign * func(x1) > np.min([sign * func(x0), sign * func(x2)]) and counter < iter_lim:
@@ -176,7 +176,7 @@ def gauss(func, x0, alpha_a, alpha_b, target="min", epsilon=1e-10, iter_lim=1000
     elif target.lower() == "max" or target.lower() == "maximum":
         sign = -1.0
     else:
-        raise ValueError("invalid value of \"target\"")
+        raise ValueError("invalid value of \"target_dual\"")
     if not (isinstance(x0, np.ndarray) or isinstance(x0, list) or isinstance(x0, float)):
         raise TypeError("x0 had to be an array")
     x0 = np.array(x0)
@@ -199,7 +199,7 @@ def pattern(func, x0, alpha_a, alpha_b, target="min", epsilon=1e-10, iter_lim=10
     elif target.lower() == "max" or target.lower() == "maximum":
         sign = -1.0
     else:
-        raise ValueError("invalid value of \"target\"")
+        raise ValueError("invalid value of \"target_dual\"")
     if not (isinstance(x0, np.ndarray) or isinstance(x0, list) or isinstance(x0, float)):
         raise TypeError("x0 had to be an array")
     x0 = np.array(x0)
@@ -228,7 +228,7 @@ def gradient_step_reduction(func, x0, default_step=10, step_red_mult=0.5, grad_e
     elif target.lower() == "max" or target.lower() == "maximum":
         sign = -1.0
     else:
-        raise ValueError("invalid value of \"target\"")
+        raise ValueError("invalid value of \"target_dual\"")
     if not (isinstance(x0, np.ndarray) or isinstance(x0, list) or isinstance(x0, float)):
         raise TypeError("x0 had to be an array")
     x0 = np.array(x0)
@@ -390,7 +390,7 @@ def target_input(target):
     elif target.lower() == "max" or target.lower() == "maximum":
         return -1.0
     else:
-        raise ValueError("invalid value of \"target\"")
+        raise ValueError("invalid value of \"target_dual\"")
 
 
 def x0_input(x0):
