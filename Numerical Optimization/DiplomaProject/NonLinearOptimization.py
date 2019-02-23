@@ -5,6 +5,7 @@ from math import isnan
 from tqdm import tqdm as tqdm
 from multiprocessing import cpu_count
 from multiprocessing.dummy import Pool as ThreadPool
+from numpy.polynomial import legendre as leg
 
 
 def dichotomy(func, a, b, a_lst=None, b_lst=None, target="min", epsilon=1e-10, iter_lim=1000000):
@@ -729,6 +730,8 @@ def r_algorithm_B_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
 
     for k in iterations:
 
+        step_1_current_zero, step_2_current_zero = False, False
+
         if print_iter_index:
             print(k)
 
@@ -769,12 +772,19 @@ def r_algorithm_B_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
             matrix_B_2 = matrix_B_transformation(matrix_B_2, grad_2_current, grad_2_next, beta)
             continue
 
-        x_1_current, grad_1_current = x_1_next.copy(), grad_1_next.copy()
-        x_1_next = x_1_current - step_1_current * np.dot(matrix_B_1, xi_1_current)
+        if np.abs(step_1_current) < 1e-51:
+            step_1_current_zero = True
+        else:
+            x_1_current, grad_1_current = x_1_next.copy(), grad_1_next.copy()
+            x_1_next = x_1_current - step_1_current * np.dot(matrix_B_1, xi_1_current)
         results_1.append(x_1_next.copy())
 
-        x_2_current, grad_2_current = x_2_next.copy(), grad_2_next.copy()
-        x_2_next = x_2_current - step_2_current * np.dot(matrix_B_2, xi_2_current)
+
+        if np.abs(step_2_current) < 1e-51:
+            step_2_current_zero = True
+        else:
+            x_2_current, grad_2_current = x_2_next.copy(), grad_2_next.copy()
+            x_2_next = x_2_current - step_2_current * np.dot(matrix_B_2, xi_2_current)
         results_2.append(x_2_next.copy())
 
         grad_1_next = grad_1(x_1_next, lambda x: func_1(x, x_2_next), epsilon=grad_epsilon)
@@ -785,9 +795,9 @@ def r_algorithm_B_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
 
         if linalg.norm(np.concatenate((x_1_next, x_2_next)) -
                        np.concatenate((x_1_current, x_2_current))) < calc_epsilon_x or \
-           linalg.norm(np.concatenate((grad_1_next, grad_2_next))) < calc_epsilon_grad:
+           linalg.norm(np.concatenate((grad_1_next, grad_2_next))) < calc_epsilon_grad or \
+                (step_1_current_zero and step_2_current_zero):
             break
-
         matrix_B_1 = matrix_B_transformation(matrix_B_1, grad_1_current, grad_1_next, beta)
         matrix_B_2 = matrix_B_transformation(matrix_B_2, grad_2_current, grad_2_next, beta)
 
@@ -1022,6 +1032,8 @@ def r_algorithm_H_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
 
     for k in iterations:
 
+        step_1_current_zero, step_2_current_zero = False, False
+
         if print_iter_index:
             print(k)
             print(x_1_next)
@@ -1067,17 +1079,23 @@ def r_algorithm_H_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
         if print_iter_index:
             print('Вычисление приближения №1')
 
-        x_1_current, grad_1_current = x_1_next.copy(), grad_1_next.copy()
-        x_1_next = x_1_current - step_1_current * np.dot(matrix_H_1, grad_1_next) / \
-                   np.sqrt(np.dot(np.dot(matrix_H_1, grad_1_next), grad_1_next))
+        if np.abs(step_1_current) < 1e-51:
+            step_1_current_zero = True
+        else:
+            x_1_current, grad_1_current = x_1_next.copy(), grad_1_next.copy()
+            x_1_next = x_1_current - step_1_current * np.dot(matrix_H_1, grad_1_next) / \
+                       np.sqrt(np.dot(np.dot(matrix_H_1, grad_1_next), grad_1_next))
         results_1.append(x_1_next.copy())
 
         if print_iter_index:
             print('Вычисление приближения №2')
 
-        x_2_current, grad_2_current = x_2_next.copy(), grad_2_next.copy()
-        x_2_next = x_2_current - step_2_current * np.dot(matrix_H_2, grad_2_next) /\
-                   np.sqrt(np.dot(np.dot(matrix_H_2, grad_2_next), grad_2_next))
+        if np.abs(step_2_current) < 1e-51:
+            step_2_current_zero = True
+        else:
+            x_2_current, grad_2_current = x_2_next.copy(), grad_2_next.copy()
+            x_2_next = x_2_current - step_2_current * np.dot(matrix_H_2, grad_2_next) / \
+                       np.sqrt(np.dot(np.dot(matrix_H_2, grad_2_next), grad_2_next))
         results_2.append(x_2_next.copy())
 
         if print_iter_index:
@@ -1094,7 +1112,8 @@ def r_algorithm_H_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
 
         if linalg.norm(np.concatenate((x_1_next, x_2_next)) -
                        np.concatenate((x_1_current, x_2_current))) < calc_epsilon_x or \
-           linalg.norm(np.concatenate((grad_1_next, grad_2_next))) < calc_epsilon_grad:
+           linalg.norm(np.concatenate((grad_1_next, grad_2_next))) < calc_epsilon_grad or \
+                (step_1_current_zero and step_2_current_zero):
             break
 
         if print_iter_index:
@@ -1686,14 +1705,14 @@ def r_algorithm_interior_point_4(func, x0, g, r_k, args=None, grad=middle_grad_n
         print([g[i](x_current) for i in range(len(g))])
 
         if args is None:
-            x_next = r_algorithm(lambda x: sign * func(x) - r_k(k) *
+            x_next = r_algorithm(lambda x: sign * func(x) + r_k(k) *
                                            np.array([np.maximum(g[i](x), 0.0) for i in range(len(g))]).sum(),
                                  x_current, None, grad, form, beta, 'min', grad_epsilon, calc_epsilon_x,
                                  calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
                                  continue_transformation,
                                  print_iter_index, **kwargs)
         else:
-            x_next = r_algorithm(lambda x: sign * func(x, args) - r_k(k) *
+            x_next = r_algorithm(lambda x: sign * func(x, args) + r_k(k) *
                                            np.array([np.maximum(g[i](x), 0.0) for i in range(len(g))]).sum(),
                                  x_current, None, grad, form, beta, 'min', grad_epsilon, calc_epsilon_x,
                                  calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
@@ -1742,20 +1761,20 @@ def r_algorithm_interior_point_4_cooperative(func_1, func_2, x0_1, x0_2, g_1, g_
         x_1_current, x_2_current = x_1_next.copy(), x_2_next.copy()
 
         if args_1 is None:
-            func_as_arg_1 = lambda x, y: sign_1 * func_1(x, y) - \
+            func_as_arg_1 = lambda x, y: sign_1 * func_1(x, y) + \
                                          r_k_1(k) * np.array([np.maximum(g_1[i](x, y), 0.0)
                                                               for i in range(len(g_1))]).sum()
         else:
-            func_as_arg_1 = lambda x, y: sign_1 * func_1(x, y, args_1) - \
+            func_as_arg_1 = lambda x, y: sign_1 * func_1(x, y, args_1) + \
                                          r_k_1(k) * np.array([np.maximum(g_1[i](x, y), 0.0)
                                                               for i in range(len(g_1))]).sum()
 
         if args_2 is None:
-            func_as_arg_2 = lambda x, y: sign_2 * func_2(x, y) - \
+            func_as_arg_2 = lambda x, y: sign_2 * func_2(x, y) + \
                                          r_k_2(k) * np.array([np.maximum(g_2[i](x, y), 0.0)
                                                               for i in range(len(g_2))]).sum()
         else:
-            func_as_arg_2 = lambda x, y: sign_2 * func_2(x, y, args_2) - \
+            func_as_arg_2 = lambda x, y: sign_2 * func_2(x, y, args_2) + \
                                          r_k_2(k) * np.array([np.maximum(g_2[i](x, y), 0.0)
                                                               for i in range(len(g_2))]).sum()
 
@@ -1790,3 +1809,142 @@ def trapezoid_double(integrand, x_a, x_b, y_a, y_b, grid_dot_num_x=10, grid_dot_
     return (x_b - x_a) * (y_b - y_a) / 4 / grid_dot_num_x / grid_dot_num_y * \
            (integrand_vals[:grid_dot_num_y, :grid_dot_num_x].sum() + integrand_vals[1:, :grid_dot_num_x].sum() +
             integrand_vals[:grid_dot_num_y, 1:].sum() + integrand_vals[1:, 1:].sum())
+
+
+# Функция вычисляющая двойной интеграл методом Гаусса
+def integral_double(integrand, x_a, x_b, y_a, y_b, grid_dot_num_x=10, grid_dot_num_y=10):
+
+    legc_x, legc_y = np.zeros(grid_dot_num_x + 2), np.zeros(grid_dot_num_y + 2)
+    legc_x[-1], legc_y[-1] = 1.0, 1.0
+
+    x_vals, y_vals = leg.legroots(legc_x), leg.legroots(legc_y)
+
+    legc_x[-1], legc_y[-1] = 0.0, 0.0
+    legc_x[-2], legc_y[-2] = 1.0, 1.0
+    weights_x, weights_y = \
+        2 / ((grid_dot_num_x + 1) * leg.legval(x_vals, legc_x)) ** 2 * (1 - x_vals ** 2), \
+        2 / ((grid_dot_num_y + 1) * leg.legval(y_vals, legc_y)) ** 2 * (1 - y_vals ** 2)
+
+    xx, yy = np.meshgrid(x_vals, y_vals)
+    weights_xx, weights_yy = np.meshgrid(weights_x, weights_y)
+
+    return ((x_b - x_a) * (y_b - y_a) / 4 * weights_xx * weights_yy *
+            integrand((x_b + x_a) / 2 + (x_b - x_a) / 2 * xx, (y_b + y_a) / 2 + (y_b - y_a) / 2 * yy)).sum()
+
+
+# Вспомогательная функция
+# Реализует преобразование аргумента tau, заданного матрицей, к вектору, путем переписывания матрицы построчно
+# Возвращает вектор переписанных в однух строчку строк матрицы
+def tau_transformation_from_matrix_to_vector(tau):
+    tau = np.array(tau)
+    if len(tau.shape) == 2:
+        return tau.ravel()
+    return tau.ravel().reshape(tau.shape[0], -1).T
+
+
+# Вспомогательная функция
+# Реализует преобразование аргумента tau, заданного вектором к матрице, исходя из того, что в векторном виде у tau
+# всегда четное количество компонент; тогда результатом роботы функции будет матрица, где первая половина элементов
+# вектора tau записана в первую строку матрицы, вторая половина -- во вторую
+def tau_transformation_from_vector_to_matrix(tau):
+    tau = np.array(tau)
+    if len(tau.shape) == 1:
+        return tau.reshape(2, -1)
+    return tau.T.reshape(tau.shape[1], 2, -1)
+
+
+# Целевой функционал задачи А6
+# Принимает те же аргументы, что и двойственный функционал данной задачи (linear_partition_problem_target_dual)
+def linear_partition_problem_target(psi, tau, args):
+
+    tau = tau_transformation_from_vector_to_matrix(tau)
+
+    partition_number, product_number, cost_function_vector, density_vector, a_matrix, b_vector, x_left, x_right, \
+    y_left, y_right, grid_dot_num_x, grid_dot_num_y = args
+
+    if partition_number != tau.shape[1] or partition_number != b_vector.size or \
+            partition_number != a_matrix.shape[0] or product_number != len(cost_function_vector) or \
+            product_number != len(density_vector) or product_number != a_matrix.shape[1]:
+        raise ValueError('Please, check input data!')
+
+    return np.array([
+        integral_double(lambda x, y: np.array(
+            (cost_function_vector[j](x, y, tau) +
+             a_matrix[:, j].reshape(partition_number, 1, 1) * np.ones((partition_number, x.shape[0], x.shape[1]))) *
+            np.where(
+                cost_function_vector[j](x, y, tau) +
+                a_matrix[:, j].reshape(partition_number, 1, 1) * np.ones((partition_number, x.shape[0], x.shape[1])) +
+                psi.reshape(partition_number, 1, 1) * np.ones((partition_number, x.shape[0], x.shape[1])) ==
+                np.array(
+                    cost_function_vector[j](x, y, tau) +
+                    a_matrix[:, j].reshape(partition_number, 1, 1) * np.ones((partition_number, x.shape[0], x.shape[1]))
+                    + psi.reshape(partition_number, 1, 1) * np.ones((partition_number, x.shape[0], x.shape[1]))
+                ).min(axis=0), 1.0, 0.0
+            )
+        ).sum(axis=0) * density_vector[j](x, y), x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y)
+        for j in range(product_number)]).sum()
+
+
+# Двойственный функционал задачи А6 (Линейной многопродуктовой задачи ОРМ с размещением центров)
+# psi -- переменная, по которой будет происходить максимизация функционала
+# tau -- переменная, по которой будет происходить минимизация функционала
+# args -- аргумент функции, через который будут передаваться дополнительные параметры целевого функционала
+# partition_number -- количество множеств в каждом разбиении
+# product_number -- количество продуктов
+# cost_function_vector -- вектор, через который передается правило вычисления стоимостей (c(x, tau))
+# density_vector -- вектор, в котором содержатся плотности (rho(x))
+# a_matrix -- матрица весовых коэффициентов целевого функционала
+# b_vector -- вектор коэффициентов, определяющих ограничения, наложенные на подмножества из разбиений
+# x_left, x_right, y_left, y_right -- границы прямоугольника, в котором можно заключить исходную область
+# tau_initial -- начальное приближение центров каждого подмножества
+# tau_limitations -- ограничения, наложенные на расположения центров подмножеств
+# grid_dot_num -- количество узлов в сетке
+def linear_partition_problem_target_dual(psi, tau, args):
+    tau = tau_transformation_from_vector_to_matrix(tau)
+
+    partition_number, product_number, cost_function_vector, density_vector, a_matrix, b_vector, x_left, x_right, \
+    y_left, y_right, grid_dot_num_x, grid_dot_num_y = args
+
+    if partition_number != tau.shape[1] or partition_number != psi.size or partition_number != b_vector.size or \
+            partition_number != a_matrix.shape[0] or product_number != len(cost_function_vector) or \
+            product_number != len(density_vector) or product_number != a_matrix.shape[1]:
+        raise ValueError('Please, check input data!')
+
+    return np.array([
+        integral_double(
+            lambda x, y: np.array(cost_function_vector[j](x, y, tau) +
+                                  a_matrix[:, j].reshape(partition_number, 1, 1) *
+                                  np.ones((partition_number, x.shape[0], x.shape[1])) +
+                                  psi.reshape(partition_number, 1, 1) *
+                                  np.ones((partition_number, x.shape[0], x.shape[1]))).min(axis=0) *
+            density_vector[j](x, y), x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y)
+        for j in range(product_number)]).sum() - np.dot(psi, b_vector)
+
+
+# Двойственный функционал задачи А6 (Линейной многопродуктовой задачи ОРМ с размещением центров) с барьерными функциями
+# psi -- переменная, по которой будет происходить максимизация функционала
+# tau -- переменная, по которой будет происходить минимизация функционала
+# args -- аргумент функции, через который будут передаваться дополнительные параметры целевого функционала
+# partition_number -- количество множеств в каждом разбиении
+# product_number -- количество продуктов
+# cost_function_vector -- вектор, через который передается правило вычисления стоимостей (c(x, tau))
+# density_vector -- вектор, в котором содержатся плотности (rho(x))
+# a_matrix -- матрица весовых коэффициентов целевого функционала
+# b_vector -- вектор коэффициентов, определяющих ограничения, наложенные на подмножества из разбиений
+# x_left, x_right, y_left, y_right -- границы прямоугольника, в котором можно заключить исходную область
+# tau_initial -- начальное приближение центров каждого подмножества
+# tau_limitations -- ограничения, наложенные на расположения центров подмножеств
+# grid_dot_num -- количество узлов в сетке
+# additional_args -- параметр, через который будут передаваться дополнительные параметры целевого функционала,
+# не передающиеся в функционал без барьерных функций
+# psi_limitations -- ограничения по psi
+# tau_limitations -- ограничения по tau
+# psi_penalty -- штраф по psi
+# tau_penalty -- штраф по tau
+def linear_partition_problem_target_dual_interior_point(psi, tau, args, additional_args):
+
+    psi_limitations, tau_limitations, psi_penalty, tau_penalty = additional_args
+
+    return linear_partition_problem_target_dual(psi, tau, args) - psi_penalty *\
+           np.array([np.maximum(psi_limitations[i](psi), 0.0) for i in range(len(psi_limitations))]).sum() +\
+           tau_penalty * np.array([np.maximum(tau_limitations[i](tau), 0.0) for i in range(len(tau_limitations))]).sum()
