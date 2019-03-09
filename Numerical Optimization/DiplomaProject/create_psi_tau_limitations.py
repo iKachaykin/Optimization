@@ -1,6 +1,6 @@
 if __name__ == '__main__':
 
-    partition_num = 9
+    partition_num = 10
 
     buf = ''
 

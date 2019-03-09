@@ -12,26 +12,32 @@ if __name__ == '__main__':
     x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y = 0.0, 6.0, 0.0, 20.0, 60, 200
 
     cost_function_vector = [lambda x, y, tau:
-                            np.sqrt((x * np.ones((tau.shape[1], x.shape[0], x.shape[1])) -
-                                     tau[0].reshape(tau.shape[1], 1, 1) *
-                                     np.ones((tau.shape[1], x.shape[0], x.shape[1]))) ** 2 +
-                                    (y * np.ones((tau.shape[1], y.shape[0], y.shape[1])) -
-                                     tau[1].reshape(tau.shape[1], 1, 1) *
-                                     np.ones((tau.shape[1], y.shape[0], y.shape[1]))) ** 2),
+                            np.array([
+                                np.abs(x * np.ones((tau.shape[1], x.shape[0], x.shape[1])) -
+                                       tau[0].reshape(tau.shape[1], 1, 1) *
+                                       np.ones((tau.shape[1], x.shape[0], x.shape[1]))),
+                                np.abs(y * np.ones((tau.shape[1], y.shape[0], y.shape[1])) -
+                                       tau[1].reshape(tau.shape[1], 1, 1) *
+                                       np.ones((tau.shape[1], y.shape[0], y.shape[1])))
+                            ]).max(axis=0),
                             lambda x, y, tau:
-                            np.sqrt((x * np.ones((tau.shape[1], x.shape[0], x.shape[1])) -
-                                     tau[0].reshape(tau.shape[1], 1, 1) *
-                                     np.ones((tau.shape[1], x.shape[0], x.shape[1]))) ** 2 +
-                                    (y * np.ones((tau.shape[1], y.shape[0], y.shape[1])) -
-                                     tau[1].reshape(tau.shape[1], 1, 1) *
-                                     np.ones((tau.shape[1], y.shape[0], y.shape[1]))) ** 2),
+                            np.array([
+                                np.abs(x * np.ones((tau.shape[1], x.shape[0], x.shape[1])) -
+                                       tau[0].reshape(tau.shape[1], 1, 1) *
+                                       np.ones((tau.shape[1], x.shape[0], x.shape[1]))),
+                                np.abs(y * np.ones((tau.shape[1], y.shape[0], y.shape[1])) -
+                                       tau[1].reshape(tau.shape[1], 1, 1) *
+                                       np.ones((tau.shape[1], y.shape[0], y.shape[1])))
+                            ]).max(axis=0),
                             lambda x, y, tau:
-                            np.sqrt((x * np.ones((tau.shape[1], x.shape[0], x.shape[1])) -
-                                     tau[0].reshape(tau.shape[1], 1, 1) *
-                                     np.ones((tau.shape[1], x.shape[0], x.shape[1]))) ** 2 +
-                                    (y * np.ones((tau.shape[1], y.shape[0], y.shape[1])) -
-                                     tau[1].reshape(tau.shape[1], 1, 1) *
-                                     np.ones((tau.shape[1], y.shape[0], y.shape[1]))) ** 2)
+                            np.array([
+                                np.abs(x * np.ones((tau.shape[1], x.shape[0], x.shape[1])) -
+                                       tau[0].reshape(tau.shape[1], 1, 1) *
+                                       np.ones((tau.shape[1], x.shape[0], x.shape[1]))),
+                                np.abs(y * np.ones((tau.shape[1], y.shape[0], y.shape[1])) -
+                                       tau[1].reshape(tau.shape[1], 1, 1) *
+                                       np.ones((tau.shape[1], y.shape[0], y.shape[1])))
+                            ]).max(axis=0)
                             ]
 
     density_vector = [lambda x, y: 1.0, lambda x, y: 1.0, lambda x, y: 1.0]
@@ -59,8 +65,15 @@ if __name__ == '__main__':
         [0.1, 1.3, 2.1, 5.7, 10.0, 11.5, 12.9, 13.9, 19.0]
     ])
 
-    tau_initial[0] = np.random.rand(partition_number) * (x_right - x_left) + x_left
-    tau_initial[1] = np.random.rand(partition_number) * (y_right - y_left) + y_left
+    # tau_initial[0] = np.random.rand(partition_number) * (x_right - x_left) + x_left
+    # tau_initial[1] = np.random.rand(partition_number) * (y_right - y_left) + y_left
+
+    tau_initial[:, 0] = np.array([2.9, 12.9])
+    tau_initial[:, 1] = np.array([3.1, 4.2])
+    tau_initial[:, 4] = np.array([3.0, 3.8])
+    tau_initial[:, 5] = np.array([2.5, 18.5])
+    tau_initial[:, 7] = np.array([3.0, 19.1])
+    tau_initial[:, 8] = np.array([2.8, 3.7])
 
     psi_limitations = [
         lambda psi: -psi[2], lambda psi: -psi[3], lambda psi: -psi[4], lambda psi: -psi[5],

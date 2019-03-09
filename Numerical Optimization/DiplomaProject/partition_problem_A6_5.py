@@ -12,26 +12,26 @@ if __name__ == '__main__':
     x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y = 0.0, 6.0, 0.0, 20.0, 60, 200
 
     cost_function_vector = [lambda x, y, tau:
-                            np.sqrt((x * np.ones((tau.shape[1], x.shape[0], x.shape[1])) -
-                                     tau[0].reshape(tau.shape[1], 1, 1) *
-                                     np.ones((tau.shape[1], x.shape[0], x.shape[1]))) ** 2 +
-                                    (y * np.ones((tau.shape[1], y.shape[0], y.shape[1])) -
-                                     tau[1].reshape(tau.shape[1], 1, 1) *
-                                     np.ones((tau.shape[1], y.shape[0], y.shape[1]))) ** 2),
+                            np.abs(x * np.ones((tau.shape[1], x.shape[0], x.shape[1])) -
+                                   tau[0].reshape(tau.shape[1], 1, 1) *
+                                   np.ones((tau.shape[1], x.shape[0], x.shape[1]))) +
+                            np.abs(y * np.ones((tau.shape[1], y.shape[0], y.shape[1])) -
+                                   tau[1].reshape(tau.shape[1], 1, 1) *
+                                   np.ones((tau.shape[1], y.shape[0], y.shape[1]))),
                             lambda x, y, tau:
-                            np.sqrt((x * np.ones((tau.shape[1], x.shape[0], x.shape[1])) -
-                                     tau[0].reshape(tau.shape[1], 1, 1) *
-                                     np.ones((tau.shape[1], x.shape[0], x.shape[1]))) ** 2 +
-                                    (y * np.ones((tau.shape[1], y.shape[0], y.shape[1])) -
-                                     tau[1].reshape(tau.shape[1], 1, 1) *
-                                     np.ones((tau.shape[1], y.shape[0], y.shape[1]))) ** 2),
+                            np.abs(x * np.ones((tau.shape[1], x.shape[0], x.shape[1])) -
+                                   tau[0].reshape(tau.shape[1], 1, 1) *
+                                   np.ones((tau.shape[1], x.shape[0], x.shape[1]))) +
+                            np.abs(y * np.ones((tau.shape[1], y.shape[0], y.shape[1])) -
+                                   tau[1].reshape(tau.shape[1], 1, 1) *
+                                   np.ones((tau.shape[1], y.shape[0], y.shape[1]))),
                             lambda x, y, tau:
-                            np.sqrt((x * np.ones((tau.shape[1], x.shape[0], x.shape[1])) -
-                                     tau[0].reshape(tau.shape[1], 1, 1) *
-                                     np.ones((tau.shape[1], x.shape[0], x.shape[1]))) ** 2 +
-                                    (y * np.ones((tau.shape[1], y.shape[0], y.shape[1])) -
-                                     tau[1].reshape(tau.shape[1], 1, 1) *
-                                     np.ones((tau.shape[1], y.shape[0], y.shape[1]))) ** 2)
+                            np.abs(x * np.ones((tau.shape[1], x.shape[0], x.shape[1])) -
+                                   tau[0].reshape(tau.shape[1], 1, 1) *
+                                   np.ones((tau.shape[1], x.shape[0], x.shape[1]))) +
+                            np.abs(y * np.ones((tau.shape[1], y.shape[0], y.shape[1])) -
+                                   tau[1].reshape(tau.shape[1], 1, 1) *
+                                   np.ones((tau.shape[1], y.shape[0], y.shape[1])))
                             ]
 
     density_vector = [lambda x, y: 1.0, lambda x, y: 1.0, lambda x, y: 1.0]

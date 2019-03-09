@@ -779,7 +779,6 @@ def r_algorithm_B_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
             x_1_next = x_1_current - step_1_current * np.dot(matrix_B_1, xi_1_current)
         results_1.append(x_1_next.copy())
 
-
         if np.abs(step_2_current) < 1e-51:
             step_2_current_zero = True
         else:
@@ -1811,6 +1810,17 @@ def trapezoid_double(integrand, x_a, x_b, y_a, y_b, grid_dot_num_x=10, grid_dot_
             integrand_vals[:grid_dot_num_y, 1:].sum() + integrand_vals[1:, 1:].sum())
 
 
+# Функция вычисляющая двойной интеграл методом трапеций (вариант с циклами)
+def trapezoid_double_loop(integrand, x_a, x_b, y_a, y_b, grid_dot_num_x=10, grid_dot_num_y=10):
+    sum = 0.0
+    x_vals, y_vals = np.linspace(x_a, x_b, grid_dot_num_x + 1), np.linspace(y_a, y_b, grid_dot_num_y + 1)
+    for i in range(1, grid_dot_num_x+1):
+        for j in range(1, grid_dot_num_y+1):
+            sum += integrand(x_vals[i-1], y_vals[j-1]) + integrand(x_vals[i], y_vals[j-1]) +\
+                   integrand(x_vals[i-1], y_vals[j]) + integrand(x_vals[i], y_vals[j])
+    return sum * (x_b - x_a) * (y_b - y_a) / 4 / grid_dot_num_x / grid_dot_num_y
+
+
 # Функция вычисляющая двойной интеграл методом Гаусса
 def integral_double(integrand, x_a, x_b, y_a, y_b, grid_dot_num_x=10, grid_dot_num_y=10):
 
@@ -1868,7 +1878,7 @@ def linear_partition_problem_target(psi, tau, args):
         raise ValueError('Please, check input data!')
 
     return np.array([
-        integral_double(lambda x, y: np.array(
+        trapezoid_double(lambda x, y: np.array(
             (cost_function_vector[j](x, y, tau) +
              a_matrix[:, j].reshape(partition_number, 1, 1) * np.ones((partition_number, x.shape[0], x.shape[1]))) *
             np.where(
@@ -1883,6 +1893,32 @@ def linear_partition_problem_target(psi, tau, args):
             )
         ).sum(axis=0) * density_vector[j](x, y), x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y)
         for j in range(product_number)]).sum()
+
+
+# Целевой функционал задачи А6 (циклический вариант)
+# Принимает те же аргументы, что и двойственный функционал данной задачи (linear_partition_problem_target_dual)
+def linear_partition_problem_target_loop(psi, tau, args):
+
+    tau = tau_transformation_from_vector_to_matrix(tau)
+
+    partition_number, product_number, cost_function_vector, density_vector, a_matrix, b_vector, x_left, x_right, \
+    y_left, y_right, grid_dot_num_x, grid_dot_num_y = args
+
+    if partition_number != tau.shape[1] or partition_number != b_vector.size or \
+            partition_number != a_matrix.shape[0] or product_number != len(cost_function_vector) or \
+            product_number != len(density_vector) or product_number != a_matrix.shape[1]:
+        raise ValueError('Please, check input data!')
+
+    return np.array(
+        [np.array(
+            [trapezoid_double_loop(
+                lambda x, y: (cost_function_vector[j](x, y, tau[:, i]) + a_matrix[i, j]) * density_vector[j](x, y) *
+                             (1.0 if cost_function_vector[j](x, y, tau[:, i]) + a_matrix[i, j] + psi[i] ==
+                                     np.array([cost_function_vector[j](x, y, tau[:, k]) + a_matrix[k, j] + psi[k]
+                                               for k in range(partition_number)]).min(axis=0) else 0.0),
+                x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y)
+             for i in range(partition_number)]
+        ).sum() for j in range(product_number)]).sum()
 
 
 # Двойственный функционал задачи А6 (Линейной многопродуктовой задачи ОРМ с размещением центров)
@@ -1911,12 +1947,45 @@ def linear_partition_problem_target_dual(psi, tau, args):
         raise ValueError('Please, check input data!')
 
     return np.array([
-        integral_double(
+        trapezoid_double(
             lambda x, y: np.array(cost_function_vector[j](x, y, tau) +
                                   a_matrix[:, j].reshape(partition_number, 1, 1) *
                                   np.ones((partition_number, x.shape[0], x.shape[1])) +
                                   psi.reshape(partition_number, 1, 1) *
                                   np.ones((partition_number, x.shape[0], x.shape[1]))).min(axis=0) *
+            density_vector[j](x, y), x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y)
+        for j in range(product_number)]).sum() - np.dot(psi, b_vector)
+
+
+# Двойственный функционал задачи А6 (Линейной многопродуктовой задачи ОРМ с размещением центров) (циклический вариант)
+# psi -- переменная, по которой будет происходить максимизация функционала
+# tau -- переменная, по которой будет происходить минимизация функционала
+# args -- аргумент функции, через который будут передаваться дополнительные параметры целевого функционала
+# partition_number -- количество множеств в каждом разбиении
+# product_number -- количество продуктов
+# cost_function_vector -- вектор, через который передается правило вычисления стоимостей (c(x, tau))
+# density_vector -- вектор, в котором содержатся плотности (rho(x))
+# a_matrix -- матрица весовых коэффициентов целевого функционала
+# b_vector -- вектор коэффициентов, определяющих ограничения, наложенные на подмножества из разбиений
+# x_left, x_right, y_left, y_right -- границы прямоугольника, в котором можно заключить исходную область
+# tau_initial -- начальное приближение центров каждого подмножества
+# tau_limitations -- ограничения, наложенные на расположения центров подмножеств
+# grid_dot_num -- количество узлов в сетке
+def linear_partition_problem_target_dual_loop(psi, tau, args):
+    tau = tau_transformation_from_vector_to_matrix(tau)
+
+    partition_number, product_number, cost_function_vector, density_vector, a_matrix, b_vector, x_left, x_right, \
+    y_left, y_right, grid_dot_num_x, grid_dot_num_y = args
+
+    if partition_number != tau.shape[1] or partition_number != psi.size or partition_number != b_vector.size or \
+            partition_number != a_matrix.shape[0] or product_number != len(cost_function_vector) or \
+            product_number != len(density_vector) or product_number != a_matrix.shape[1]:
+        raise ValueError('Please, check input data!')
+
+    return np.array([
+        trapezoid_double_loop(
+            lambda x, y: np.array([cost_function_vector[j](x, y, tau[:, i]) + a_matrix[i, j] + psi[i]
+                                   for i in range(partition_number)]).min(axis=0) *
             density_vector[j](x, y), x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y)
         for j in range(product_number)]).sum() - np.dot(psi, b_vector)
 
