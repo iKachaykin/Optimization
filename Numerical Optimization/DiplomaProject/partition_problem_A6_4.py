@@ -154,8 +154,9 @@ if __name__ == '__main__':
     dual_target_val_solution = nlopt.linear_partition_problem_target_dual(
         psi_solution, nlopt.tau_transformation_from_matrix_to_vector(tau_solution), args
     )
-    print('tau: {0}\npsi: {1}\nTarget value: {2}\nDual target value: {3}'.
-          format(tau_solution, psi_solution, target_val_solution, dual_target_val_solution))
+    print('tau: {0}\n{1}\npsi: {2}\nTarget value: {3}\nDual target value: {4}'.
+          format(', '.join(map(str, tau_solution[0])), ', '.join(map(str, tau_solution[1])),
+                 ', '.join(map(str, psi_solution)), target_val_solution, dual_target_val_solution))
 
     for product in range(product_number):
         plt.figure(product + product_number + 1, figsize=figsize)

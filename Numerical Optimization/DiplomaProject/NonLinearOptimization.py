@@ -1863,6 +1863,22 @@ def tau_transformation_from_vector_to_matrix(tau):
     return tau.T.reshape(tau.shape[1], 2, -1)
 
 
+# Вспомогательная функция
+# Реализует преобразование пары (psi, Y) в один вектор var_max
+def psi_Y_to_var_max(psi, Y):
+    if len(psi.shape) != 1 or len(Y.shape) != 2 or psi.size != Y.shape[0]:
+        raise ValueError('Input arguments are invalid!')
+    return np.concatenate((psi.ravel(), Y.ravel()))
+
+
+# Вспомогательная функция
+# Реализует преобразование пары var_max в пару (psi, Y)
+def var_max_to_psi_Y(var_max, partition_number):
+    if len(var_max.shape) != 1 or var_max.size % partition_number != 0:
+        raise ValueError('Input argument is invalid!')
+    return var_max[:partition_number], var_max[partition_number:].reshape(partition_number, -1)
+
+
 # Целевой функционал задачи А6
 # Принимает те же аргументы, что и двойственный функционал данной задачи (linear_partition_problem_target_dual)
 def linear_partition_problem_target(psi, tau, args):
@@ -1932,8 +1948,6 @@ def linear_partition_problem_target_loop(psi, tau, args):
 # a_matrix -- матрица весовых коэффициентов целевого функционала
 # b_vector -- вектор коэффициентов, определяющих ограничения, наложенные на подмножества из разбиений
 # x_left, x_right, y_left, y_right -- границы прямоугольника, в котором можно заключить исходную область
-# tau_initial -- начальное приближение центров каждого подмножества
-# tau_limitations -- ограничения, наложенные на расположения центров подмножеств
 # grid_dot_num -- количество узлов в сетке
 def linear_partition_problem_target_dual(psi, tau, args):
     tau = tau_transformation_from_vector_to_matrix(tau)
@@ -1968,8 +1982,6 @@ def linear_partition_problem_target_dual(psi, tau, args):
 # a_matrix -- матрица весовых коэффициентов целевого функционала
 # b_vector -- вектор коэффициентов, определяющих ограничения, наложенные на подмножества из разбиений
 # x_left, x_right, y_left, y_right -- границы прямоугольника, в котором можно заключить исходную область
-# tau_initial -- начальное приближение центров каждого подмножества
-# tau_limitations -- ограничения, наложенные на расположения центров подмножеств
 # grid_dot_num -- количество узлов в сетке
 def linear_partition_problem_target_dual_loop(psi, tau, args):
     tau = tau_transformation_from_vector_to_matrix(tau)
@@ -2001,8 +2013,6 @@ def linear_partition_problem_target_dual_loop(psi, tau, args):
 # a_matrix -- матрица весовых коэффициентов целевого функционала
 # b_vector -- вектор коэффициентов, определяющих ограничения, наложенные на подмножества из разбиений
 # x_left, x_right, y_left, y_right -- границы прямоугольника, в котором можно заключить исходную область
-# tau_initial -- начальное приближение центров каждого подмножества
-# tau_limitations -- ограничения, наложенные на расположения центров подмножеств
 # grid_dot_num -- количество узлов в сетке
 # additional_args -- параметр, через который будут передаваться дополнительные параметры целевого функционала,
 # не передающиеся в функционал без барьерных функций
@@ -2017,3 +2027,44 @@ def linear_partition_problem_target_dual_interior_point(psi, tau, args, addition
     return linear_partition_problem_target_dual(psi, tau, args) - psi_penalty *\
            np.array([np.maximum(psi_limitations[i](psi), 0.0) for i in range(len(psi_limitations))]).sum() +\
            tau_penalty * np.array([np.maximum(tau_limitations[i](tau), 0.0) for i in range(len(tau_limitations))]).sum()
+
+
+# Двойственный функционал задачи А8 (Нелинейной многопродуктовой задачи ОРМ с размещением центров)
+# var_max -- переменная, являющаяся конкатенацией psi и Y: var_max = (psi, Y)
+# psi -- первая переменная, по которой будет происходить максимизация функционала
+# Y -- вторая переменная, по которой будет происходить максимизация функционала
+# tau -- переменная, по которой будет происходить минимизация функционала
+# args -- аргумент функции, через который будут передаваться дополнительные параметры целевого функционала
+# partition_number -- количество множеств в каждом разбиении
+# product_number -- количество продуктов
+# cost_function_vector -- вектор, через который передается правило вычисления стоимостей (c(x, tau))
+# density_vector -- вектор, в котором содержатся плотности (rho(x))
+# phi -- функция возвращающая матрицу весовых функций целевого функционала
+# phi_der -- производная от phi
+# b_vector -- вектор коэффициентов, определяющих ограничения, наложенные на подмножества из разбиений
+# x_left, x_right, y_left, y_right -- границы прямоугольника, в котором можно заключить исходную область
+# grid_dot_num -- количество узлов в сетке
+def nonlinear_partition_problem_target_dual(var_max, tau, args):
+
+    tau = tau_transformation_from_vector_to_matrix(tau)
+    psi, Y = var_max_to_psi_Y(var_max)
+
+    partition_number, product_number, cost_function_vector, density_vector, phi, phi_der, b_vector, x_left, x_right, \
+    y_left, y_right, grid_dot_num_x, grid_dot_num_y = args
+
+    if partition_number != tau.shape[1] or partition_number != psi.size or partition_number != b_vector.size or \
+            partition_number != phi(Y).shape[0] or product_number != len(cost_function_vector) or \
+            product_number != len(density_vector) or product_number != phi(Y).shape[1]:
+        raise ValueError('Please, check input data!')
+
+    return np.array([
+        trapezoid_double(
+            lambda x, y: np.array(cost_function_vector[j](x, y, tau) +
+                                  phi_der(Y)[:, j].reshape(partition_number, 1, 1) *
+                                  np.ones((partition_number, x.shape[0], x.shape[1])) +
+                                  psi.reshape(partition_number, 1, 1) *
+                                  np.ones((partition_number, x.shape[0], x.shape[1]))).min(axis=0) *
+            density_vector[j](x, y), x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y) *
+        partition_number + (phi(Y)[:, j] - phi_der(Y)[:, j] * Y[:, j]).sum()
+        for j in range(product_number)]).sum() - np.dot(psi, b_vector)
+

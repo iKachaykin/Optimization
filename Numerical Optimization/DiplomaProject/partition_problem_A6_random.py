@@ -134,11 +134,11 @@ if __name__ == '__main__':
 
     density_vector = [lambda x, y: 1.0]
 
-    a_matrix = np.ones((partition_number, product_number)) * 100.0
+    a_matrix = np.random.randint(0, 2, (partition_number, product_number)) * 100.0
 
-    b_vector = np.ones(partition_number) * 0.1
+    b_vector = np.random.randint(0, 2, partition_number) * 20.0
 
-    psi_initial = np.zeros(partition_number) + 1.0
+    psi_initial = np.zeros(partition_number) + 0.0001
 
     tau_initial = np.empty((2, partition_number))
     tau_initial[0] = np.random.rand(partition_number) * (x_right - x_left) + x_left

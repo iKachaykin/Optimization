@@ -65,15 +65,15 @@ if __name__ == '__main__':
         [0.1, 1.3, 2.1, 5.7, 10.0, 11.5, 12.9, 13.9, 19.0]
     ])
 
-    # tau_initial[0] = np.random.rand(partition_number) * (x_right - x_left) + x_left
-    # tau_initial[1] = np.random.rand(partition_number) * (y_right - y_left) + y_left
+    tau_initial[0] = np.random.rand(partition_number) * (x_right - x_left) + x_left
+    tau_initial[1] = np.random.rand(partition_number) * (y_right - y_left) + y_left
 
-    tau_initial[:, 0] = np.array([2.9, 12.9])
-    tau_initial[:, 1] = np.array([3.1, 4.2])
-    tau_initial[:, 4] = np.array([3.0, 3.8])
-    tau_initial[:, 5] = np.array([2.5, 18.5])
-    tau_initial[:, 7] = np.array([3.0, 19.1])
-    tau_initial[:, 8] = np.array([2.8, 3.7])
+    # tau_initial[:, 0] = np.array([2.9, 12.9])
+    # tau_initial[:, 1] = np.array([3.1, 4.2])
+    # tau_initial[:, 4] = np.array([3.0, 3.8])
+    # tau_initial[:, 5] = np.array([2.5, 18.5])
+    # tau_initial[:, 7] = np.array([3.0, 19.1])
+    # tau_initial[:, 8] = np.array([2.8, 3.7])
 
     psi_limitations = [
         lambda psi: -psi[2], lambda psi: -psi[3], lambda psi: -psi[4], lambda psi: -psi[5],
