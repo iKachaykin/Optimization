@@ -570,6 +570,8 @@ def r_algorithm_B_form(func, x0, grad, beta, step_method, step_method_kwargs, gr
     for k in iterations:
         if print_iter_index:
             print(k)
+            print(x_next)
+            print('Вычисление шага')
         xi_current = np.dot(matrix_B.T, grad_next)
         xi_current = xi_current / linalg.norm(xi_current)
         step_method_kwargs['x_current'] = x_next
@@ -582,14 +584,18 @@ def r_algorithm_B_form(func, x0, grad, beta, step_method, step_method_kwargs, gr
             matrix_B = matrix_B_transformation(matrix_B, grad_current, grad_next, beta)
             continue
         x_current, grad_current = x_next.copy(), grad_next.copy()
+        if print_iter_index:
+            print('Вычисление приближения')
         x_next = x_current - step_current * np.dot(matrix_B, xi_current)
-        # print(x_next)
-        # print(func(x_next))
         results.append(x_next.copy())
+        if print_iter_index:
+            print('Вычисление градиента')
         grad_next = grad(x_next, func, epsilon=grad_epsilon)
         grads.append(grad_next.copy())
         if linalg.norm(x_next - x_current) < calc_epsilon_x or linalg.norm(grad_next) < calc_epsilon_grad:
             break
+        if print_iter_index:
+            print('Преобразование матриц')
         matrix_B = matrix_B_transformation(matrix_B, grad_current, grad_next, beta)
     if return_grads:
         return np.array(results), np.array(grads)
@@ -874,6 +880,8 @@ def r_algorithm_H_form(func, x0, grad, beta, step_method, step_method_kwargs, gr
     for k in iterations:
         if print_iter_index:
             print(k)
+            print(x_next)
+            print('Вычисление шага')
         step_method_kwargs['x_current'] = x_next
         step_method_kwargs['direction'] = np.dot(matrix_H, grad_next) / \
                                           np.sqrt(np.dot(np.dot(matrix_H, grad_next), grad_next))
@@ -885,13 +893,19 @@ def r_algorithm_H_form(func, x0, grad, beta, step_method, step_method_kwargs, gr
             matrix_H = matrix_H_transformation(matrix_H, grad_current, grad_next, beta)
             continue
         x_current, grad_current = x_next.copy(), grad_next.copy()
+        if print_iter_index:
+            print('Вычисление приближения')
         x_next = x_current - step_current * np.dot(matrix_H, grad_current) / \
                              np.sqrt(np.dot(np.dot(matrix_H, grad_current), grad_current))
         results.append(x_next.copy())
+        if print_iter_index:
+            print('Вычисление градиента')
         grad_next = grad(x_next, func, epsilon=grad_epsilon)
         grads.append(grad_next.copy())
         if linalg.norm(x_next - x_current) < calc_epsilon_x or linalg.norm(grad_next) < calc_epsilon_grad:
             break
+        if print_iter_index:
+            print('Преобразование матриц')
         matrix_H = matrix_H_transformation(matrix_H, grad_current, grad_next, beta)
     if return_grads:
         return np.array(results), np.array(grads)
@@ -2016,17 +2030,55 @@ def linear_partition_problem_target_dual_loop(psi, tau, args):
 # grid_dot_num -- количество узлов в сетке
 # additional_args -- параметр, через который будут передаваться дополнительные параметры целевого функционала,
 # не передающиеся в функционал без барьерных функций
-# psi_limitations -- ограничения по psi
-# tau_limitations -- ограничения по tau
 # psi_penalty -- штраф по psi
+# psi_limitations_inds -- индексы тех компонентов psi, на которые накладываются ограничения
 # tau_penalty -- штраф по tau
 def linear_partition_problem_target_dual_interior_point(psi, tau, args, additional_args):
 
-    psi_limitations, tau_limitations, psi_penalty, tau_penalty = additional_args
+    partition_number, product_number, cost_function_vector, density_vector, a_matrix, b_vector, x_left, x_right, \
+    y_left, y_right, grid_dot_num_x, grid_dot_num_y = args
+    psi_penalty, psi_limitations_inds, tau_penalty = additional_args
+    tau = tau_transformation_from_vector_to_matrix(tau)
 
-    return linear_partition_problem_target_dual(psi, tau, args) - psi_penalty *\
-           np.array([np.maximum(psi_limitations[i](psi), 0.0) for i in range(len(psi_limitations))]).sum() +\
-           tau_penalty * np.array([np.maximum(tau_limitations[i](tau), 0.0) for i in range(len(tau_limitations))]).sum()
+    return linear_partition_problem_target_dual(psi, tau_transformation_from_matrix_to_vector(tau), args) - \
+           psi_penalty * np.maximum(-psi[psi_limitations_inds], 0.0).sum() + \
+           tau_penalty * (np.maximum(x_left - tau[0], 0.0) + np.maximum(y_left - tau[1], 0.0) +
+                          np.maximum(tau[0] - x_right, 0.0) + np.maximum(tau[1] - y_right, 0.0)).sum()
+
+
+# Целевой функционал задачи А8
+# Принимает те же аргументы, что и двойственный функционал данной задачи (nonlinear_partition_problem_target_dual)
+def nonlinear_partition_problem_target(var_max, tau, args):
+
+    tau = tau_transformation_from_vector_to_matrix(tau)
+
+    partition_number, product_number, cost_function_vector, density_vector, phi, phi_der, b_vector, x_left, x_right, \
+    y_left, y_right, grid_dot_num_x, grid_dot_num_y = args
+
+    psi, Y = var_max_to_psi_Y(var_max, partition_number)
+
+    if partition_number != tau.shape[1] or partition_number != psi.size or partition_number != b_vector.size or \
+            partition_number != phi(Y).shape[0] or product_number != len(cost_function_vector) or \
+            product_number != len(density_vector) or product_number != phi(Y).shape[1] or \
+            phi(Y).shape[0] != phi_der(Y).shape[0] or phi(Y).shape[1] != phi_der(Y).shape[1]:
+        raise ValueError('Please, check input data!')
+
+    return np.array([
+        trapezoid_double(lambda x, y: np.array(
+            cost_function_vector[j](x, y, tau) *
+            np.where(
+                cost_function_vector[j](x, y, tau) +
+                phi_der(Y)[:, j].reshape(partition_number, 1, 1) * np.ones((partition_number, x.shape[0], x.shape[1])) +
+                psi.reshape(partition_number, 1, 1) * np.ones((partition_number, x.shape[0], x.shape[1])) ==
+                np.array(
+                    cost_function_vector[j](x, y, tau) +
+                    phi_der(Y)[:, j].reshape(partition_number, 1, 1) *
+                    np.ones((partition_number, x.shape[0], x.shape[1]))
+                    + psi.reshape(partition_number, 1, 1) * np.ones((partition_number, x.shape[0], x.shape[1]))
+                ).min(axis=0), 1.0, 0.0
+            )
+        ).sum(axis=0) * density_vector[j](x, y), x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y)
+        for j in range(product_number)]).sum() + phi(Y).sum()
 
 
 # Двойственный функционал задачи А8 (Нелинейной многопродуктовой задачи ОРМ с размещением центров)
@@ -2047,14 +2099,16 @@ def linear_partition_problem_target_dual_interior_point(psi, tau, args, addition
 def nonlinear_partition_problem_target_dual(var_max, tau, args):
 
     tau = tau_transformation_from_vector_to_matrix(tau)
-    psi, Y = var_max_to_psi_Y(var_max)
 
     partition_number, product_number, cost_function_vector, density_vector, phi, phi_der, b_vector, x_left, x_right, \
     y_left, y_right, grid_dot_num_x, grid_dot_num_y = args
 
+    psi, Y = var_max_to_psi_Y(var_max, partition_number)
+
     if partition_number != tau.shape[1] or partition_number != psi.size or partition_number != b_vector.size or \
             partition_number != phi(Y).shape[0] or product_number != len(cost_function_vector) or \
-            product_number != len(density_vector) or product_number != phi(Y).shape[1]:
+            product_number != len(density_vector) or product_number != phi(Y).shape[1] or \
+            phi(Y).shape[0] != phi_der(Y).shape[0] or phi(Y).shape[1] != phi_der(Y).shape[1]:
         raise ValueError('Please, check input data!')
 
     return np.array([
@@ -2064,7 +2118,43 @@ def nonlinear_partition_problem_target_dual(var_max, tau, args):
                                   np.ones((partition_number, x.shape[0], x.shape[1])) +
                                   psi.reshape(partition_number, 1, 1) *
                                   np.ones((partition_number, x.shape[0], x.shape[1]))).min(axis=0) *
-            density_vector[j](x, y), x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y) *
-        partition_number + (phi(Y)[:, j] - phi_der(Y)[:, j] * Y[:, j]).sum()
+            density_vector[j](x, y), x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y) +
+        (phi(Y)[:, j] - phi_der(Y)[:, j] * Y[:, j]).sum()
         for j in range(product_number)]).sum() - np.dot(psi, b_vector)
 
+
+# Двойственный функционал задачи А8
+# (Нелинейной многопродуктовой задачи ОРМ с размещением центров) с барьерными функциями
+# var_max -- переменная, являющаяся конкатенацией psi и Y: var_max = (psi, Y)
+# psi -- первая переменная, по которой будет происходить максимизация функционала
+# Y -- вторая переменная, по которой будет происходить максимизация функционала
+# tau -- переменная, по которой будет происходить минимизация функционала
+# args -- аргумент функции, через который будут передаваться дополнительные параметры целевого функционала
+# partition_number -- количество множеств в каждом разбиении
+# product_number -- количество продуктов
+# cost_function_vector -- вектор, через который передается правило вычисления стоимостей (c(x, tau))
+# density_vector -- вектор, в котором содержатся плотности (rho(x))
+# phi -- функция возвращающая матрицу весовых функций целевого функционала
+# phi_der -- производная от phi
+# b_vector -- вектор коэффициентов, определяющих ограничения, наложенные на подмножества из разбиений
+# x_left, x_right, y_left, y_right -- границы прямоугольника, в котором можно заключить исходную область
+# grid_dot_num -- количество узлов в сетке
+# additional_args -- параметр, через который будут передаваться дополнительные параметры целевого функционала,
+# не передающиеся в функционал без барьерных функций
+# psi_penalty -- штраф по psi
+# psi_limitations_inds -- индексы тех компонентов psi, на которые накладываются ограничения
+# tau_penalty -- штраф по tau
+# Y_penalty -- штраф по Y
+def nonlinear_partition_problem_target_dual_interior_point(var_max, tau, args, additional_args):
+
+    partition_number, product_number, cost_function_vector, density_vector, phi, phi_der, b_vector, x_left, x_right, \
+    y_left, y_right, grid_dot_num_x, grid_dot_num_y = args
+    psi_penalty, psi_limitations_inds, tau_penalty, Y_penalty = additional_args
+    psi, Y = var_max_to_psi_Y(var_max, partition_number)
+    tau = tau_transformation_from_vector_to_matrix(tau)
+
+    return nonlinear_partition_problem_target_dual(var_max, tau_transformation_from_matrix_to_vector(tau), args) - \
+           psi_penalty * np.maximum(-psi[psi_limitations_inds], 0.0).sum() + \
+           tau_penalty * (np.maximum(x_left - tau[0], 0.0) + np.maximum(y_left - tau[1], 0.0) +
+                          np.maximum(tau[0] - x_right, 0.0) + np.maximum(tau[1] - y_right, 0.0)).sum() - \
+           Y_penalty * (np.maximum(-Y, 0.0).sum() + np.maximum(Y.sum(axis=1) - b_vector, 0.0).sum())

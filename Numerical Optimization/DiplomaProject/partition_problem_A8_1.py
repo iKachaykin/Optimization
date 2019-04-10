@@ -34,27 +34,32 @@ if __name__ == '__main__':
         [3.0, 1.6, 2.9, 4.4, 5.1, 5.6, 1.0, 1.5, 3.5],
         [2.0, 1.3, 2.1, 5.7, 10.0, 11.5, 12.9, 13.9, 19.0]
     ])
+    Y_initial = np.ones_like(a_matrix) * 0.0
 
-    tau_initial[0] = np.random.rand(partition_number) * (x_right - x_left) + x_left
-    tau_initial[1] = np.random.rand(partition_number) * 20.0 * np.sqrt(1 - (tau_initial[0] - 3.0)**2 / 9.0) - \
-                     10.0 * np.sqrt(1 - (tau_initial[0] - 3.0)**2 / 9.0) + 10.0
+    phi = lambda Y: a_matrix * Y
+    phi_der = lambda Y: a_matrix
 
-    psi_penalty, tau_penalty = 10000.0, 10000.0
+    # tau_initial[0] = np.random.rand(partition_number) * (x_right - x_left) + x_left
+    # tau_initial[1] = np.random.rand(partition_number) * (y_right - y_left) + y_left
+
+    psi_penalty, tau_penalty, Y_penalty = 100000.0, 100000.0, 100000.0
     psi_limitations_inds = np.arange(partition_number)
 
-    args = (partition_number, product_number, cost_function_vector, density_vector, a_matrix, b_vector, x_left, x_right,
-            y_left, y_right, grid_dot_num_x, grid_dot_num_y)
+    args = (partition_number, product_number, cost_function_vector, density_vector, phi, phi_der, b_vector,
+            x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y)
 
-    additional_args = (psi_penalty, psi_limitations_inds, tau_penalty)
+    additional_args = (psi_penalty, psi_limitations_inds, tau_penalty, Y_penalty)
 
-    target_val_initial = nlopt.linear_partition_problem_target(
-        psi_initial, nlopt.tau_transformation_from_matrix_to_vector(tau_initial), args
+    target_val_initial = nlopt.nonlinear_partition_problem_target(
+        nlopt.psi_Y_to_var_max(psi_initial, Y_initial), nlopt.tau_transformation_from_matrix_to_vector(tau_initial),
+        args
     )
-    dual_target_val_initial = nlopt.linear_partition_problem_target_dual(
-        psi_initial, nlopt.tau_transformation_from_matrix_to_vector(tau_initial), args
+    dual_target_val_initial = nlopt.nonlinear_partition_problem_target_dual(
+        nlopt.psi_Y_to_var_max(psi_initial, Y_initial), nlopt.tau_transformation_from_matrix_to_vector(tau_initial),
+        args
     )
-    print('tau: {0}\npsi: {1}\nTarget value: {2}\nDual target value: {3}'.format(
-        tau_initial, psi_initial, target_val_initial, dual_target_val_initial)
+    print('tau: {0}\npsi: {1}\nY: {2}\nTarget value: {3}\nDual target value: {4}'.format(
+        tau_initial, psi_initial, Y_initial, target_val_initial, dual_target_val_initial)
     )
 
     scale_coeff = 0.385
@@ -64,13 +69,13 @@ if __name__ == '__main__':
     tau_style, boundary_style = 'ko', 'k-'
     fontsize, fontweight = 14, 'bold'
     tau_text_shift = 0.06
-    indicator = lambda x, y, psi, tau, j: np.where(density_vector[j](x, y) != 0,
-                                                   (cost_function_vector[j](x, y, tau) +
-                                                    a_matrix[:, j].reshape(partition_number, 1, 1) *
-                                                    np.ones((partition_number, x.shape[0], x.shape[1])) +
-                                                    psi.reshape(partition_number, 1, 1) *
-                                                    np.ones((partition_number, x.shape[0], x.shape[1]))).argmin(axis=0),
-                                                   -1)
+    indicator = lambda x, y, psi, tau, Y, j: np.where(density_vector[j](x, y) != 0,
+                                                      (cost_function_vector[j](x, y, tau) +
+                                                       phi_der(Y)[:, j].reshape(partition_number, 1, 1) *
+                                                       np.ones((partition_number, x.shape[0], x.shape[1])) +
+                                                       psi.reshape(partition_number, 1, 1) *
+                                                       np.ones((partition_number, x.shape[0], x.shape[1]))).argmin(axis=0),
+                                                      -1)
     x_vals, y_vals = np.linspace(x_left, x_right, grid_dot_num_x_plotting), \
                      np.linspace(y_left, y_right, grid_dot_num_y_plotting)
     xx_grid, yy_grid = np.meshgrid(x_vals, y_vals)
@@ -81,7 +86,7 @@ if __name__ == '__main__':
         plt.grid(True)
         plt.axis([x_left, x_right, y_left, y_right])
 
-        z = indicator(xx_grid, yy_grid, psi_initial, tau_initial, product)
+        z = indicator(xx_grid, yy_grid, psi_initial, tau_initial, Y_initial, product)
         in_partition = np.unique(z)
         in_partition = in_partition[in_partition >= 0]
         cf = plt.contour(x_vals, y_vals, z, levels=in_partition, cmap=ListedColormap(['black']))
@@ -97,27 +102,30 @@ if __name__ == '__main__':
         # plt.colorbar(cf)
 
     r_alg_results = nlopt.r_algorithm_cooperative(
-        lambda psi, tau, args:
-        nlopt.linear_partition_problem_target_dual_interior_point(psi, tau, args, additional_args),
-        lambda psi, tau, args:
-        nlopt.linear_partition_problem_target_dual_interior_point(psi, tau, args, additional_args),
-        psi_initial, nlopt.tau_transformation_from_matrix_to_vector(tau_initial),
+        lambda var_max, tau, args:
+        nlopt.nonlinear_partition_problem_target_dual_interior_point(var_max, tau, args, additional_args),
+        lambda var_max, tau, args:
+        nlopt.nonlinear_partition_problem_target_dual_interior_point(var_max, tau, args, additional_args),
+        nlopt.psi_Y_to_var_max(psi_initial, Y_initial), nlopt.tau_transformation_from_matrix_to_vector(tau_initial),
         target_1='max', target_2='min', args_1=args, args_2=args,
         form='H', calc_epsilon_x=1e-4, calc_epsilon_grad=1e-10, iter_lim=1000, print_iter_index=True,
         continue_transformation=False, step_epsilon=1e-52, step_method='adaptive',
         default_step=10.0, step_red_mult=0.65, step_incr_mult=1.25, lim_num=5, reduction_epsilon=1e-15
     )
 
-    psi_solution, tau_solution = \
+    var_max_solution, tau_solution = \
         r_alg_results[0][-1], nlopt.tau_transformation_from_vector_to_matrix(r_alg_results[1][-1])
-    target_val_solution = nlopt.linear_partition_problem_target(
-        psi_solution, nlopt.tau_transformation_from_matrix_to_vector(tau_solution), args
+    psi_solution, Y_solution = nlopt.var_max_to_psi_Y(var_max_solution, partition_number)
+    target_val_solution = nlopt.nonlinear_partition_problem_target(
+        nlopt.psi_Y_to_var_max(psi_solution, Y_solution), nlopt.tau_transformation_from_matrix_to_vector(tau_solution),
+        args
     )
-    dual_target_val_solution = nlopt.linear_partition_problem_target_dual(
-        psi_solution, nlopt.tau_transformation_from_matrix_to_vector(tau_solution), args
+    dual_target_val_solution = nlopt.nonlinear_partition_problem_target_dual(
+        nlopt.psi_Y_to_var_max(psi_solution, Y_solution), nlopt.tau_transformation_from_matrix_to_vector(tau_solution),
+        args
     )
-    print('tau: {0}\npsi: {1}\nTarget value: {2}\nDual target value: {3}'.
-          format(tau_solution, psi_solution, target_val_solution, dual_target_val_solution))
+    print('tau: {0}\npsi: {1}\nY: {2}\nTarget value: {3}\nDual target value: {4}'.
+          format(tau_solution, psi_solution, Y_solution, target_val_solution, dual_target_val_solution))
 
     for product in range(product_number):
         plt.figure(product + product_number + 1, figsize=figsize)
@@ -125,7 +133,7 @@ if __name__ == '__main__':
         plt.grid(True)
         plt.axis([x_left, x_right, y_left, y_right])
 
-        z = indicator(xx_grid, yy_grid, psi_solution, tau_solution, product)
+        z = indicator(xx_grid, yy_grid, psi_solution, tau_solution, Y_solution, product)
         in_partition = np.unique(z)
         in_partition = in_partition[in_partition >= 0]
         cf = plt.contour(x_vals, y_vals, z, levels=in_partition, cmap=ListedColormap(['black']))

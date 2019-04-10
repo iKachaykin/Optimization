@@ -6,64 +6,35 @@ from matplotlib.colors import ListedColormap
 
 if __name__ == '__main__':
 
-    partition_number, product_number = 9, 3
+    partition_number, product_number = 2, 1
 
-    x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y = 0.0, 6.0, 0.0, 20.0, 60, 200
+    x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y = 0.0, 1.0, 0.0, 1.25, 200, 250
 
     cost_function_vector = [lambda x, y, tau:
-                            np.abs(x * np.ones((tau.shape[1], x.shape[0], x.shape[1])) -
-                                   tau[0].reshape(tau.shape[1], 1, 1) *
-                                   np.ones((tau.shape[1], x.shape[0], x.shape[1]))) +
-                            np.abs(y * np.ones((tau.shape[1], y.shape[0], y.shape[1])) -
-                                   tau[1].reshape(tau.shape[1], 1, 1) *
-                                   np.ones((tau.shape[1], y.shape[0], y.shape[1]))),
-                            lambda x, y, tau:
-                            np.abs(x * np.ones((tau.shape[1], x.shape[0], x.shape[1])) -
-                                   tau[0].reshape(tau.shape[1], 1, 1) *
-                                   np.ones((tau.shape[1], x.shape[0], x.shape[1]))) +
-                            np.abs(y * np.ones((tau.shape[1], y.shape[0], y.shape[1])) -
-                                   tau[1].reshape(tau.shape[1], 1, 1) *
-                                   np.ones((tau.shape[1], y.shape[0], y.shape[1]))),
-                            lambda x, y, tau:
-                            np.abs(x * np.ones((tau.shape[1], x.shape[0], x.shape[1])) -
-                                   tau[0].reshape(tau.shape[1], 1, 1) *
-                                   np.ones((tau.shape[1], x.shape[0], x.shape[1]))) +
-                            np.abs(y * np.ones((tau.shape[1], y.shape[0], y.shape[1])) -
-                                   tau[1].reshape(tau.shape[1], 1, 1) *
-                                   np.ones((tau.shape[1], y.shape[0], y.shape[1])))
+                            np.sqrt((x * np.ones((tau.shape[1], x.shape[0], x.shape[1])) -
+                                     tau[0].reshape(tau.shape[1], 1, 1) *
+                                     np.ones((tau.shape[1], x.shape[0], x.shape[1]))) ** 2 +
+                                    (y * np.ones((tau.shape[1], y.shape[0], y.shape[1])) -
+                                     tau[1].reshape(tau.shape[1], 1, 1) *
+                                     np.ones((tau.shape[1], y.shape[0], y.shape[1]))) ** 2)
                             ]
 
-    density_vector = [lambda x, y: 1.0 * (x*x + 1) / (x*x + 1), lambda x, y: 1.0 * (x*x + 1) / (x*x + 1),
-                      lambda x, y: 1.0 * (x*x + 1) / (x*x + 1)]
+    density_vector = [lambda x, y: np.where(np.logical_and(np.logical_and(x >= 0.0, x <= 1.0),
+                                                           np.logical_and(y >= 0.0, y <= 0.25 * x + 1.0)), 1.0, 0.0)]
 
-    a_matrix = np.ones((partition_number, product_number)) * 100.0
-    a_matrix[0, 0] = 0.0
-    a_matrix[0, 1] = 0.0
-    a_matrix[0, 2] = 0.0
-    a_matrix[1, 2] = 0.0
-    a_matrix[4, 1] = 0.0
-    a_matrix[5, 2] = 0.0
-    a_matrix[7, 1] = 0.0
-    a_matrix[8, 0] = 0.0
+    a_matrix = np.zeros((partition_number, product_number))
 
-    b_vector = np.ones(partition_number) * 20.0
-    b_vector[0] = 200.0
-    b_vector[1] = 50.0
-    b_vector[4] = 60.0
-    b_vector[8] = 120.0
+    b_vector = np.zeros(partition_number)
 
-    psi_initial = np.zeros(partition_number) + 0.0001
+    psi_initial = np.zeros(partition_number)
 
-    tau_initial = np.array([
-        [0.2, 1.6, 2.9, 4.4, 5.1, 5.6, 1.0, 1.5, 3.5],
-        [0.1, 1.3, 2.1, 5.7, 10.0, 11.5, 12.9, 13.9, 19.0]
-    ])
+    tau_initial = np.zeros((2, partition_number))
 
     tau_initial[0] = np.random.rand(partition_number) * (x_right - x_left) + x_left
     tau_initial[1] = np.random.rand(partition_number) * (y_right - y_left) + y_left
 
-    psi_penalty, tau_penalty = 10000.0, 10000.0
-    psi_limitations_inds = np.arange(2, partition_number)
+    psi_penalty, tau_penalty = 1.0, 100000.0
+    psi_limitations_inds = np.arange(partition_number)
 
     args = (partition_number, product_number, cost_function_vector, density_vector, a_matrix, b_vector, x_left, x_right,
             y_left, y_right, grid_dot_num_x, grid_dot_num_y)
@@ -80,8 +51,8 @@ if __name__ == '__main__':
         tau_initial, psi_initial, target_val_initial, dual_target_val_initial)
     )
 
-    scale_coeff = 0.385
-    frame_x, frame_y = 1.65, 0.0
+    scale_coeff = 6.0
+    frame_x, frame_y = 0.0, 0.0
     figsize = (scale_coeff * (x_right-x_left) + frame_x, scale_coeff * (y_right-y_left) + frame_y)
     grid_dot_num_x_plotting, grid_dot_num_y_plotting = 1000, 1000
     tau_style, boundary_style = 'ko', 'k-'
@@ -119,20 +90,17 @@ if __name__ == '__main__':
 
         # plt.colorbar(cf)
 
-    r_alg_results = nlopt.r_algorithm_cooperative(
-        lambda psi, tau, args:
-        nlopt.linear_partition_problem_target_dual_interior_point(psi, tau, args, additional_args),
-        lambda psi, tau, args:
-        nlopt.linear_partition_problem_target_dual_interior_point(psi, tau, args, additional_args),
-        psi_initial, nlopt.tau_transformation_from_matrix_to_vector(tau_initial),
-        target_1='max', target_2='min', args_1=args, args_2=args,
-        form='H', calc_epsilon_x=1e-4, calc_epsilon_grad=1e-10, iter_lim=1000, print_iter_index=True,
+    r_alg_results = nlopt.r_algorithm(
+        lambda tau, args:
+        nlopt.linear_partition_problem_target_dual_interior_point(psi_initial, tau, args, additional_args),
+        nlopt.tau_transformation_from_matrix_to_vector(tau_initial), target='min', args=args,
+        form='H', calc_epsilon_x=1e-4, calc_epsilon_grad=1e-4, iter_lim=1000, print_iter_index=True,
         continue_transformation=False, step_epsilon=1e-52, step_method='adaptive',
-        default_step=10.0, step_red_mult=0.65, step_incr_mult=1.25, lim_num=5, reduction_epsilon=1e-15
+        default_step=1.01, step_red_mult=0.1, step_incr_mult=1.1, lim_num=3, reduction_epsilon=1e-15
     )
 
     psi_solution, tau_solution = \
-        r_alg_results[0][-1], nlopt.tau_transformation_from_vector_to_matrix(r_alg_results[1][-1])
+        psi_initial.copy(), nlopt.tau_transformation_from_vector_to_matrix(r_alg_results[-1])
     target_val_solution = nlopt.linear_partition_problem_target(
         psi_solution, nlopt.tau_transformation_from_matrix_to_vector(tau_solution), args
     )

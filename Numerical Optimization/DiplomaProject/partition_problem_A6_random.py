@@ -132,53 +132,25 @@ if __name__ == '__main__':
                                      np.ones((tau.shape[1], y.shape[0], y.shape[1]))) ** 2)
                             ]
 
-    density_vector = [lambda x, y: 1.0]
+    density_vector = [lambda x, y: 1.0 * (x*x + 1) / (x*x + 1)]
 
     a_matrix = np.random.randint(0, 2, (partition_number, product_number)) * 100.0
 
     b_vector = np.random.randint(0, 2, partition_number) * 20.0
 
-    psi_initial = np.zeros(partition_number) + 0.0001
+    psi_initial = np.zeros(partition_number)
 
     tau_initial = np.empty((2, partition_number))
     tau_initial[0] = np.random.rand(partition_number) * (x_right - x_left) + x_left
     tau_initial[1] = np.random.rand(partition_number) * (y_right - y_left) + y_left
 
-    psi_limitations = [
-        lambda psi: -psi[0], lambda psi: -psi[1], lambda psi: -psi[2],
-        lambda psi: -psi[3], lambda psi: -psi[4], lambda psi: -psi[5],
-        lambda psi: -psi[6], lambda psi: -psi[7], lambda psi: -psi[8],
-        lambda psi: -psi[9],
-    ]
-
-    tau_limitations = [
-        lambda tau: x_left - tau[0], lambda tau: x_left - tau[1], lambda tau: x_left - tau[2],
-        lambda tau: x_left - tau[3], lambda tau: x_left - tau[4], lambda tau: x_left - tau[5],
-        lambda tau: x_left - tau[6], lambda tau: x_left - tau[7], lambda tau: x_left - tau[8],
-        lambda tau: x_left - tau[9],
-
-        lambda tau: y_left - tau[10], lambda tau: y_left - tau[11], lambda tau: y_left - tau[12],
-        lambda tau: y_left - tau[13], lambda tau: y_left - tau[14], lambda tau: y_left - tau[15],
-        lambda tau: y_left - tau[16], lambda tau: y_left - tau[17], lambda tau: y_left - tau[18],
-        lambda tau: y_left - tau[19],
-
-        lambda tau: tau[0] - x_right, lambda tau: tau[1] - x_right, lambda tau: tau[2] - x_right,
-        lambda tau: tau[3] - x_right, lambda tau: tau[4] - x_right, lambda tau: tau[5] - x_right,
-        lambda tau: tau[6] - x_right, lambda tau: tau[7] - x_right, lambda tau: tau[8] - x_right,
-        lambda tau: tau[9] - x_right,
-
-        lambda tau: tau[10] - y_right, lambda tau: tau[11] - y_right, lambda tau: tau[12] - y_right,
-        lambda tau: tau[13] - y_right, lambda tau: tau[14] - y_right, lambda tau: tau[15] - y_right,
-        lambda tau: tau[16] - y_right, lambda tau: tau[17] - y_right, lambda tau: tau[18] - y_right,
-        lambda tau: tau[19] - y_right
-    ]
-
     psi_penalty, tau_penalty = 10000.0, 10000.0
+    psi_limitations_inds = np.arange(partition_number)
 
     args = (partition_number, product_number, cost_function_vector, density_vector, a_matrix, b_vector, x_left, x_right,
             y_left, y_right, grid_dot_num_x, grid_dot_num_y)
 
-    additional_args = (psi_limitations, tau_limitations, psi_penalty, tau_penalty)
+    additional_args = (psi_penalty, psi_limitations_inds, tau_penalty)
 
     target_val_initial = nlopt.linear_partition_problem_target(
         psi_initial, nlopt.tau_transformation_from_matrix_to_vector(tau_initial), args
@@ -190,16 +162,20 @@ if __name__ == '__main__':
         tau_initial, psi_initial, target_val_initial, dual_target_val_initial)
     )
 
-    figsize = (15.0, 7.5)
+    scale_coeff = 7.0
+    frame_x, frame_y = 0.0, 0.0
+    figsize = (scale_coeff * (x_right-x_left) + frame_x, scale_coeff * (y_right-y_left) + frame_y)
     grid_dot_num_x_plotting, grid_dot_num_y_plotting = 1000, 1000
     tau_style, boundary_style = 'ko', 'k-'
     fontsize, fontweight = 14, 'bold'
-    tau_text_shift = 0.005
-    indicator = lambda x, y, psi, tau, j: (cost_function_vector[j](x, y, tau) +
-                                           a_matrix[:, j].reshape(partition_number, 1, 1) *
-                                           np.ones((partition_number, x.shape[0], x.shape[1])) +
-                                           psi.reshape(partition_number, 1, 1) *
-                                           np.ones((partition_number, x.shape[0], x.shape[1]))).argmin(axis=0)
+    tau_text_shift = 0.06
+    indicator = lambda x, y, psi, tau, j: np.where(density_vector[j](x, y) != 0,
+                                                   (cost_function_vector[j](x, y, tau) +
+                                                    a_matrix[:, j].reshape(partition_number, 1, 1) *
+                                                    np.ones((partition_number, x.shape[0], x.shape[1])) +
+                                                    psi.reshape(partition_number, 1, 1) *
+                                                    np.ones((partition_number, x.shape[0], x.shape[1]))).argmin(axis=0),
+                                                   -1)
     x_vals, y_vals = np.linspace(x_left, x_right, grid_dot_num_x_plotting), \
                      np.linspace(y_left, y_right, grid_dot_num_y_plotting)
     xx_grid, yy_grid = np.meshgrid(x_vals, y_vals)
@@ -212,7 +188,10 @@ if __name__ == '__main__':
 
         z = indicator(xx_grid, yy_grid, psi_initial, tau_initial, product)
         in_partition = np.unique(z)
+        in_partition = in_partition[in_partition >= 0]
         cf = plt.contour(x_vals, y_vals, z, levels=in_partition, cmap=ListedColormap(['black']))
+        plt.contour(x_vals, y_vals, density_vector[product](xx_grid, yy_grid), levels=[0.0],
+                    cmap=ListedColormap(['black']))
 
         plt.plot(tau_initial[0, in_partition], tau_initial[1, in_partition], tau_style)
         for p in in_partition:
@@ -253,7 +232,10 @@ if __name__ == '__main__':
 
         z = indicator(xx_grid, yy_grid, psi_solution, tau_solution, product)
         in_partition = np.unique(z)
+        in_partition = in_partition[in_partition >= 0]
         cf = plt.contour(x_vals, y_vals, z, levels=in_partition, cmap=ListedColormap(['black']))
+        plt.contour(x_vals, y_vals, density_vector[product](xx_grid, yy_grid), levels=[0.0],
+                    cmap=ListedColormap(['black']))
 
         plt.plot(tau_solution[0, in_partition], tau_solution[1, in_partition], tau_style)
         for p in in_partition:
