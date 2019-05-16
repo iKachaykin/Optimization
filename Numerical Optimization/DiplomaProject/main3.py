@@ -16,14 +16,20 @@ def alpha_k(k):
 def main():
     x0, x_left, x_right, y_left, y_right, alpha_left, alpha_right, dot_num, figsize, levels, calc_epsilon, level_max_diff, \
         exact_solution, point_seq_style, way_style, exact_solution_style, grid_alpha, min_dist_between_points = \
-        [2.0, 3.0], -5.0, 5.0, -5.0, 5.0, -10.0, 10.0, 500, (15, 7.5), [], 1e-2, 0.5, [0.0, 0.0], "ko", "k-", "ro", \
+        [2.0, 3.0], -5.0, 5.0, -5.0, 5.0, -10.0, 10.0, 500, (15, 7.5), [], 1e-8, 0.5, [0.0, 0.0], "ko", "k-", "ro", \
         0.25, 1e-2
     plt.figure(figsize=figsize)
     points_seq = nlopt.r_algorithm(f, x0, form='B', calc_epsilon_x=calc_epsilon, iter_lim=100, step_method='adaptive',
-                                   default_step=10, step_red_mult=0.05, step_incr_mult=2, lim_num=3, reduction_epsilon=1e-15)
-    print(points_seq.shape[0])
-    argmin = points_seq[points_seq.shape[0] - 1]
-    print(argmin)
+                                   default_step=1.0, step_red_mult=0.05, step_incr_mult=2, lim_num=3,
+                                   reduction_epsilon=1e-15)
+    points_seq2 = nlopt.r_algorithm(f, x0, form='H', calc_epsilon_x=calc_epsilon, iter_lim=100, step_method='adaptive',
+                                    default_step=1.0, step_red_mult=0.05, step_incr_mult=2, lim_num=3,
+                                    reduction_epsilon=1e-15)
+    print('%d - %d' % (points_seq.shape[0], points_seq2.shape[0]))
+    argmin = points_seq[-1]
+    min_size = np.minimum(points_seq.shape[0], points_seq2.shape[0])
+    print('Отклонение между формами B и H: %f' % np.linalg.norm(points_seq[:min_size] - points_seq2[:min_size]))
+    print('{0} - {1}'.format(argmin, points_seq2[-1]))
     print('--------')
     print(points_seq)
     count = 0

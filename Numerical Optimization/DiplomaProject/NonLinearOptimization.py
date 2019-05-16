@@ -1,5 +1,6 @@
 import numpy as np
 import numpy.linalg as linalg
+import sys
 from scipy.misc import derivative
 from math import isnan
 from tqdm import tqdm as tqdm
@@ -600,6 +601,48 @@ def r_algorithm_B_form(func, x0, grad, beta, step_method, step_method_kwargs, gr
     if return_grads:
         return np.array(results), np.array(grads)
     return np.array(results)
+
+
+# Реализация r-алгоритма в B-форме для седловой точки
+# Данная функция осуществляет поиск седловой точки для заданной целевой функции при помощи r-алгоритма в B-форме
+# ----------------------------------------------------------------------------------------------------------------------
+# Аргументы:
+# func - целевая функция func = func(x_min, x_max), где x_min - переменная по которой целевая функция минимизируется,
+# x_max - максимизируется
+# x0_min - начальное приближение для x_min
+# x0_max - начальное приближение для x_max
+# grad - метод вычисления субградиента, интерфейс которого совпадает с интерфейсом методов вычисления градиента выше,
+# то есть grad = grad(x, func, eps), где x - точка, в которой вычисляется субградиент, func - функция, от которой
+# берется субградиент, eps - погрешность вычислений
+# beta_min - коэффициент растяжения пространства для x_min
+# beta_max - коэффициент растяжения пространства для x_max
+# step_method_min, step_method_max - способы нахождения шагового множителя для x_min и x_max соответственно,
+# задающиеся в виде строки; допускается 4 значения:
+# 1) argmin - метод наискорейшего спуска
+# 2) func - метод априорного определения
+# 3) reduction - метод дробления шага
+# 4) adaptive - адаптивный алгоритм
+# step_method_kwargs_min, step_method_kwargs_max - словари содержащие параметры указанных методов нахождения шага;
+# содержимое словарей перечислено выше и для каждого метода оно различно
+# grad_epsilon - точность вычисления субградиента
+# calc_epsilon - параметр, используемый при проверки критерия остановки
+# step_epsilon -  если шаг меньше данной величины, то считаем, что шаг приблизительно равен 0.0
+# iter_lim - предельное количество итераций
+# return_grads - переменная, определяющая возвращать коллекцию всех субградиентов или нет (Детали ниже)
+# tqdm_fl - переменная-флаг для печати или не печати прогресс-бара
+# continue_transformation - переменная-флаг, определяющая, стоит ли продолжать преобразование пространства в направлении
+# разности последних отличающихся субградиентов
+# print_iter_index - переменная-флаг, определяющая печатать индекс итерации или нет (Если ==True, то печатать)
+# ----------------------------------------------------------------------------------------------------------------------
+# Возвращаемое значение:
+# 1) если return_grads = True, то возвращаемое значение - tuple, первый элемент которой - list всех точек приближения,
+# второй - list всех субградиентов в соответствующих точках
+# 2) если return_grads = False, то возвращаемое значение - list всех точек приближения
+def r_algorithm_B_form_saddle_point(func, x0_min, x0_max, grad, beta_min, beta_max, step_method_min, step_method_max,
+                                    step_method_kwargs_min, step_method_kwargs_max, grad_epsilon, calc_epsilon_x,
+                                    calc_epsilon_grad, step_epsilon, iter_lim, return_grads, tqdm_fl,
+                                    continue_transformation, print_iter_index):
+    pass
 
 
 def r_algorithm_B_form_double(func_1, func_2, x0_1, x0_2, grad_1, grad_2, beta, step_method, step_method_kwargs,
@@ -1207,7 +1250,7 @@ def x0_input(x0):
 # 1) если return_grads = True, то возвращаемое значение - tuple, первый элемент которой - list всех точек приближения,
 # второй - list всех субградиентов в соответствующих точках
 # 2) если return_grads = False, то возвращаемое значение - list всех точек приближения
-def r_algorithm(func, x0, args=None, grad=middle_grad_non_matrix, form='B', beta=0.5, target='min',
+def r_algorithm(func, x0, args=None, grad=middle_grad_non_matrix_pool, form='B', beta=0.5, target='min',
                 grad_epsilon=1e-8, calc_epsilon_x=1e-10, calc_epsilon_grad=1e-10, step_epsilon=1e-15, iter_lim=1000000,
                 return_grads=False, tqdm_fl=False, continue_transformation=True, print_iter_index=False, **kwargs):
     sign = target_input(target)
@@ -2062,6 +2105,28 @@ def nonlinear_partition_problem_target(var_max, tau, args):
             product_number != len(density_vector) or product_number != phi(Y).shape[1] or \
             phi(Y).shape[0] != phi_der(Y).shape[0] or phi(Y).shape[1] != phi_der(Y).shape[1]:
         raise ValueError('Please, check input data!')
+    
+    x, y = np.linspace(x_left, x_right, grid_dot_num_x), np.linspace(y_left, y_right, grid_dot_num_y)
+    xx, yy = np.meshgrid(x, y)
+
+    Y_temp = np.zeros((partition_number, product_number))
+
+    for i in range(partition_number):
+        for j in range(product_number):
+            Y_temp[i, j] = trapezoid_double(
+                lambda x, y:
+                np.where(
+                    cost_function_vector[j](x, y, tau)[i] +
+                    phi_der(Y)[i, j] * np.ones((x.shape[0], x.shape[1])) +
+                    psi[i] * np.ones((x.shape[0], x.shape[1])) ==
+                    np.array(
+                        cost_function_vector[j](x, y, tau) +
+                        phi_der(Y)[:, j].reshape(partition_number, 1, 1) *
+                        np.ones((partition_number, x.shape[0], x.shape[1]))
+                        + psi.reshape(partition_number, 1, 1) * np.ones((partition_number, x.shape[0], x.shape[1]))
+                    ).min(axis=0),
+                    1.0, 0.0),
+                x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y)
 
     return np.array([
         trapezoid_double(lambda x, y: np.array(
@@ -2118,8 +2183,8 @@ def nonlinear_partition_problem_target_dual(var_max, tau, args):
                                   np.ones((partition_number, x.shape[0], x.shape[1])) +
                                   psi.reshape(partition_number, 1, 1) *
                                   np.ones((partition_number, x.shape[0], x.shape[1]))).min(axis=0) *
-            density_vector[j](x, y), x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y) +
-        (phi(Y)[:, j] - phi_der(Y)[:, j] * Y[:, j]).sum()
+            density_vector[j](x, y), x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y)
+        + (phi(Y)[:, j] - phi_der(Y)[:, j] * Y[:, j]).sum()
         for j in range(product_number)]).sum() - np.dot(psi, b_vector)
 
 

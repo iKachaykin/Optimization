@@ -40,15 +40,12 @@ if __name__ == '__main__':
 
     b_vector = np.array([100.0, 86.0, 36.0, 80.0, 17.0, 5.0, 100.0, 15.0, 25.0])
 
-    psi_initial = np.zeros(partition_number)
-    tau_initial = np.array([
-        [3.0, 1.6, 2.9, 4.4, 5.1, 5.6, 1.0, 1.5, 3.5],
-        [2.0, 1.3, 2.1, 5.7, 10.0, 11.5, 12.9, 13.9, 19.0]
-    ])
+    psi_initial = np.zeros(partition_number) + 1
+    tau_initial = np.zeros((2, partition_number))
     Y_initial = nlopt.trapezoid_double(lambda x, y:
                                        np.array([density_vector[j](x, y) for j in range(product_number)]).sum(axis=0),
                                        x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y) /\
-                product_number / partition_number * np.ones((partition_number, product_number))
+                product_number / partition_number / 11 * np.ones((partition_number, product_number))
 
     phi = lambda Y: Y ** 2
     phi_der = lambda Y: 2 * Y
@@ -124,7 +121,7 @@ if __name__ == '__main__':
         target_1='max', target_2='min', args_1=args, args_2=args,
         form='H', calc_epsilon_x=1e-4, calc_epsilon_grad=1e-4, iter_lim=1000, print_iter_index=True,
         continue_transformation=False, step_epsilon=1e-52, step_method='adaptive',
-        default_step=1.0, step_red_mult=0.1, step_incr_mult=1.25, lim_num=5, reduction_epsilon=1e-15
+        default_step=0.1, step_red_mult=0.1, step_incr_mult=1.25, lim_num=5, reduction_epsilon=1e-15
     )
 
     var_max_solution, tau_solution = \

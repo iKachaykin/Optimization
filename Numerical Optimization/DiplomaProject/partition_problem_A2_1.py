@@ -99,7 +99,7 @@ if __name__ == '__main__':
         lambda tau, args:
         nlopt.linear_partition_problem_target_dual_interior_point(psi_initial, tau, args, additional_args),
         nlopt.tau_transformation_from_matrix_to_vector(tau_initial), target='min', args=args,
-        form='H', calc_epsilon_x=1e-4, calc_epsilon_grad=1e-4, iter_lim=1000, print_iter_index=True,
+        form='B', calc_epsilon_x=1e-4, calc_epsilon_grad=1e-4, iter_lim=1000, print_iter_index=True,
         continue_transformation=False, step_epsilon=1e-52, step_method='adaptive',
         default_step=1.01, step_red_mult=0.1, step_incr_mult=1.1, lim_num=3, reduction_epsilon=1e-15
     )

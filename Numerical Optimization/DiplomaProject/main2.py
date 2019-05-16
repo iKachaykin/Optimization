@@ -16,17 +16,19 @@ def main():
     x0, x_min, x_max, y_min, y_max, alpha_left, alpha_right, dot_num, figsize, levels, calc_epsilon, level_max_diff, \
         exact_solution, point_seq_style, way_style, exact_solution_style, grid_alpha, min_dist_between_points, \
         grads_color = \
-        [5.0, 10.0], -10.0, 10.0, -10.0, 10.0, 0.0, 10.0, 500, (15, 7.5), [], 1e-4, 50, [0.0, 0.0], "ko", "k-", "ro", \
+        [5.0, 10.0], -10.0, 10.0, -10.0, 10.0, 0.0, 10.0, 500, (15, 7.5), [], 1e-20, 50, [0.0, 0.0], "ko", "k-", "ro", \
         0.25, 1e-2, "r"
     plt.figure(figsize=figsize)
-    points_seq, grads_seq = nlopt.r_algorithm(f, x0, target='max', form='B', calc_epsilon_x=calc_epsilon, iter_lim=100, step_method='adaptive',
-                                   default_step=10, step_red_mult=0.05, step_incr_mult=2, lim_num=3,
-                                              reduction_epsilon=1e-15, return_grads=True)
-    points_seq2 = nlopt.r_algorithm(f, x0, target='max', form='B', calc_epsilon=calc_epsilon, iter_lim=100, step_method='reduction',
-                                    default_step=10.0, step_red_mult=0.1, reduction_epsilon=1e-15)
-    argmin, last_grad = points_seq[points_seq.shape[0] - 1], grads_seq[grads_seq.shape[0] - 1]
+    points_seq, grads_seq = nlopt.r_algorithm(f, x0, target='max', form='B', calc_epsilon_x=calc_epsilon, iter_lim=100,
+                                              step_method='adaptive', default_step=1.0, step_red_mult=0.05,
+                                              step_incr_mult=2, lim_num=3, reduction_epsilon=1e-15, return_grads=True)
+    points_seq2 = nlopt.r_algorithm(f, x0, target='max', form='H', calc_epsilon_x=calc_epsilon, iter_lim=100,
+                                    step_method='adaptive', default_step=1.0, step_red_mult=0.05,
+                                    step_incr_mult=2, lim_num=3, reduction_epsilon=1e-15)
+    argmin, last_grad = points_seq[-1], grads_seq[-1]
+    print('Отклонение между формами B и H: %f' % np.linalg.norm(points_seq - points_seq2))
     print('%d - %d' % (points_seq.shape[0], points_seq2.shape[0]))
-    print('{0} - {1}'.format(argmin, points_seq2[points_seq2.shape[0] - 1]))
+    print('{0} - {1}'.format(argmin, points_seq2[-1]))
     print('--------')
     print(points_seq)
     print(grads_seq)

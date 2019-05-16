@@ -40,23 +40,47 @@ if __name__ == '__main__':
 
     b_vector = np.array([100.0, 86.0, 36.0, 80.0, 17.0, 5.0, 100.0, 15.0, 25.0])
 
-    psi_initial = np.zeros(partition_number)
-    tau_initial = np.array([
-        [3.0, 1.6, 2.9, 4.4, 5.1, 5.6, 1.0, 1.5, 3.5],
-        [2.0, 1.3, 2.1, 5.7, 10.0, 11.5, 12.9, 13.9, 19.0]
-    ])
-    Y_initial = nlopt.trapezoid_double(lambda x, y:
-                                       np.array([density_vector[j](x, y) for j in range(product_number)]).sum(axis=0),
-                                       x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y) /\
-                product_number / partition_number * np.ones((partition_number, product_number))
+    psi_initial = np.zeros(partition_number) + 0.5
+    tau_initial = np.zeros((2, partition_number))
+    Y_initial = np.zeros((partition_number, product_number)) + 0.5
+
+    # Y_initial = np.array([
+    #     [10, 100, 10, 10, 100, 10, 10, 100, 10],
+    #     [10, 100, 10, 10, 100, 10, 10, 100, 10],
+    #     [10, 100, 10, 10, 100, 10, 10, 100, 10]
+    # ]).T
 
     phi = lambda Y: Y ** 2
     phi_der = lambda Y: 2 * Y
 
-    tau_initial[0] = np.random.rand(partition_number) * (x_right - x_left) + x_left
-    tau_initial[1] = np.random.rand(partition_number) * (y_right - y_left) + y_left
+    # for i in range(partition_number):
+    #     for j in range(product_number):
+    #         print(
+    #             '%f -- %f' % (
+    #                 nlopt.trapezoid_double(
+    #                     lambda x, y:
+    #                     density_vector[j](x, y) *
+    #                     np.where(
+    #                         cost_function_vector[j](x, y, tau_initial)[i] +
+    #                         phi_der(Y_initial)[i, j] +
+    #                         psi_initial[i] ==
+    #                         np.array(
+    #                             cost_function_vector[j](x, y, tau_initial) +
+    #                             phi_der(Y_initial)[:, j].reshape(partition_number, 1, 1) *
+    #                             np.ones((partition_number, x.shape[0], x.shape[1])) +
+    #                             psi_initial.reshape(partition_number, 1, 1) *
+    #                             np.ones((partition_number, x.shape[0], x.shape[1]))
+    #                         ).min(axis=0), 1.0, 0.0),
+    #                     x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y
+    #                 ),
+    #                 Y_initial[i, j]
+    #             )
+    #         )
 
-    psi_penalty, tau_penalty, Y_penalty = 100000.0, 100000.0, 100000.0
+    # tau_initial[0] = np.random.rand(partition_number) * (x_right - x_left) + x_left
+    # tau_initial[1] = np.random.rand(partition_number) * (y_right - y_left) + y_left
+
+    psi_penalty, tau_penalty, Y_penalty = 10000000.0, 100000.0, 10000000.0
     psi_limitations_inds = np.array([0, 1, 3, 4, 6, 8])
 
     args = (partition_number, product_number, cost_function_vector, density_vector, phi, phi_der, b_vector,
@@ -140,6 +164,30 @@ if __name__ == '__main__':
     )
     print('tau: {0}\npsi: {1}\nY: {2}\nTarget value: {3}\nDual target value: {4}'.
           format(tau_solution, psi_solution, Y_solution, target_val_solution, dual_target_val_solution))
+    
+    # for i in range(partition_number):
+    #     for j in range(product_number):
+    #         print(
+    #             '%f -- %f' % (
+    #                 nlopt.trapezoid_double(
+    #                     lambda x, y:
+    #                     density_vector[j](x, y) *
+    #                     np.where(
+    #                         cost_function_vector[j](x, y, tau_solution)[i] +
+    #                         phi_der(Y_solution)[i, j] +
+    #                         psi_solution[i] ==
+    #                         np.array(
+    #                             cost_function_vector[j](x, y, tau_solution) +
+    #                             phi_der(Y_solution)[:, j].reshape(partition_number, 1, 1) *
+    #                             np.ones((partition_number, x.shape[0], x.shape[1])) +
+    #                             psi_solution.reshape(partition_number, 1, 1) *
+    #                             np.ones((partition_number, x.shape[0], x.shape[1]))
+    #                         ).min(axis=0), 1.0, 0.0),
+    #                     x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y
+    #                 ),
+    #                 Y_solution[i, j]
+    #             )
+    #         )
 
     for product in range(product_number):
         plt.figure(product + product_number + 1, figsize=figsize)

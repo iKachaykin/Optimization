@@ -1,7 +1,6 @@
-import r_algorithm as ralg
 import numpy as np
 import matplotlib.pyplot as plt
-from colgen import create_colors
+import NonLinearOptimization as nlopt
 from numpy.linalg import norm
 
 
@@ -13,11 +12,11 @@ from numpy.linalg import norm
 # x - вектор переменных задачи оптимизации
 # args - tuple дополнительных параметров целевой функции, которые на момент оптимизации считаются постоянными
 def f(x, args):
-    return (x[0] - 2) ** 4 + (x[0] - 2 * x[1]) ** 2
+    return np.exp(-np.abs(x[0])-np.abs(x[1])-np.abs(x[2]))
 
 
 if __name__ == '__main__':
-    # exact_solution - точное решение задачи оптимизации (если неизвестно - присовить None)
+    # exact_solution - точное решение задачи оптимизации (если неизвестно - присвоить None)
     # x0 - начальное приближение
     # args - tuple дополнительных параметров целевой функции, которые на момент оптимизации считаются постоянными
     # grad - метод вычисления субградиента, интерфейс которого совпадает с интерфейсом методов вычисления градиента выше
@@ -41,30 +40,34 @@ if __name__ == '__main__':
     # points - список точек, полученный в процессе последовательных приближений при помощи r-алгоритма
     # grads - список субградиентов, вычисленных в точках points
     # numerical_solution - численное решение поставленной задачи оптимизации
-    exact_solution = np.array([2.0, 1.0])
-    x0 = np.array([4.0, 4.0])
+    exact_solution = np.array([0.0, 0.0, 0.0])
+    x0 = np.array([-1.0, 2.0, 3.0])
     args = 0.0
-    grad = ralg.middle_grad_non_matrix
-    form = 'B'
+    grad = nlopt.middle_grad_non_matrix_pool
+    form = 'H'
     beta = 0.5
-    target = 'min'
+    target = 'max'
     grad_epsilon = 1e-8
-    calc_epsilon = 1e-4
+    calc_epsilon_x = 1e-4
+    calc_epsilon_grad = 1e-4
     step_epsilon = 1e-15
     iter_lim = 1000
     return_grads = True
     step_method = 'adaptive'
-    default_step = 10.0
-    step_red_mult = 0.05
-    step_incr_mult = 2.0
+    default_step = 1.0
+    step_red_mult = 0.7
+    step_incr_mult = 1.2
     lim_num = 3
     reduction_epsilon = 1e-15
-    points, grads = ralg.r_algorithm(f, x0, args, grad, form, beta, target, grad_epsilon, calc_epsilon,
-                                     step_epsilon, iter_lim, return_grads, step_method=step_method,
-                                     default_step=default_step, step_red_mult=step_red_mult,
-                                     step_incr_mult=step_incr_mult, lim_num=lim_num,
-                                     reduction_epsilon=reduction_epsilon)
-    numerical_solution = points[len(points) - 1]
+    points, grads = nlopt.r_algorithm(f, x0, args, grad, form, beta, target, grad_epsilon, calc_epsilon_x,
+                                      calc_epsilon_grad, step_epsilon, iter_lim, return_grads, step_method=step_method,
+                                      default_step=default_step, step_red_mult=step_red_mult,
+                                      step_incr_mult=step_incr_mult, lim_num=lim_num,
+                                      reduction_epsilon=reduction_epsilon)
+    numerical_solution = points[-1]
+    print('Количество итераций: %d' % points.shape[0])
+    print('Отклонение от точного решения: %f' % np.linalg.norm(numerical_solution - exact_solution))
+    print('Приближения к решению на каждой итерации:\n{0}'.format(points))
     # Если целевая функция является функцией двух переменных - построим линии уровня
     if numerical_solution.size == 2:
         # x_min, x_max, y_min, y_max - параметры определяющие прямоугольник, в котором будут построены линии уровня:
@@ -87,18 +90,21 @@ if __name__ == '__main__':
         # points_seq - копия points, из которой исключили достаточно близкие друг к другу точки
         # grads_seq - градиенты, вычисленные в points_seq
         # number_of_plotting_grads - количество градиентов, которое будет построено, если plot_grads=True
-        x_min, x_max, y_min, y_max = -0.5, 4.5, -3.0, 5.0
+        shift_left, shift_right, shift_bottom, shift_top = 5.0, 5.0, 5.0, 5.0
+        x_min, x_max, y_min, y_max = \
+            exact_solution[0] - shift_left, exact_solution[0] + shift_right,\
+            exact_solution[1] - shift_bottom, exact_solution[1] + shift_top
         dot_num = 1000
         figsize = (15, 7.5)
         levels = []
-        level_max_diff = 5
+        level_max_diff = 10
         point_seq_style, way_style, exact_solution_style = "ko", "k-", "ro"
         grid_alpha = 0.25
         min_dist_between_points = 1e-2
         grads_color = "r"
         plot_grads, label_levels = True, True
-        number_of_plotting_grads = 4
-        points_seq = ralg.remove_nearly_same_points(points, min_dist_between_points)
+        number_of_plotting_grads = 3
+        points_seq = nlopt.remove_nearly_same_points(points, min_dist_between_points)
         grads_seq = []
         for point in points_seq:
             grads_seq.append(grad(point, lambda x: f(x, args), grad_epsilon))
@@ -118,9 +124,8 @@ if __name__ == '__main__':
         plt.figure(figsize=figsize)
         plt.xlabel(r"$x_1$")
         plt.ylabel(r"$x_2$")
-        plt.grid("True", alpha=grid_alpha)
-        colors = create_colors(levels.size)[::-1]
-        numerical_contour = plt.contour(x, y, z, levels=levels, colors=colors)
+        plt.grid(True)
+        numerical_contour = plt.contour(x, y, z, levels=levels)
         plt.plot(points_seq[:, 0], points_seq[:, 1], point_seq_style, label=u"Наближення")
         for i in range(points_seq.shape[0] - 1):
             plt.plot([points_seq[i][0], points_seq[i + 1][0]], [points_seq[i][1], points_seq[i + 1][1]], way_style)
