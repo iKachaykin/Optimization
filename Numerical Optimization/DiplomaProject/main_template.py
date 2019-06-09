@@ -4,6 +4,7 @@ import NonLinearOptimization as nlopt
 from numpy.linalg import norm
 from mpl_toolkits.mplot3d import axes3d
 
+
 # Данный файл является шаблоном для использования реализованного r-алгоритма
 
 # Целевая функция

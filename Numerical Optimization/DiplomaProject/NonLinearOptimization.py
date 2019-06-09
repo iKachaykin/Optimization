@@ -9,17 +9,17 @@ from multiprocessing.dummy import Pool as ThreadPool
 from numpy.polynomial import legendre as leg
 
 
-def dichotomy(func, a, b, a_lst=None, b_lst=None, target="min", epsilon=1e-10, iter_lim=1000000):
+def dichotomy(func, a, b, a_lst=None, b_lst=None, target='min', epsilon=1e-10, iter_lim=1000000):
     if np.abs(epsilon) < 2e-15:
-        raise ValueError("epsilon is to small to perform calculations")
+        raise ValueError('epsilon is to small to perform calculations')
     if a >= b:
         a, b = b, a
-    if target.lower() == "min" or target.lower() == "minimum":
+    if target.lower() == 'min' or target.lower() == 'minimum':
         sign = 1.0
-    elif target.lower() == "max" or target.lower() == "maximum":
+    elif target.lower() == 'max' or target.lower() == 'maximum':
         sign = -1.0
     else:
-        raise ValueError("invalid value of \"target_dual\"")
+        raise ValueError('invalid value of "target"')
     counter, delta = 0, epsilon / 2
     if a_lst is not None:
         a_lst.append(a)
@@ -38,15 +38,15 @@ def dichotomy(func, a, b, a_lst=None, b_lst=None, target="min", epsilon=1e-10, i
     return (a + b) / 2.0
 
 
-def gsection(func, a, b, a_lst=None, b_lst=None, target="min", epsilon=1e-10, iter_lim=1000000):
+def gsection(func, a, b, a_lst=None, b_lst=None, target='min', epsilon=1e-10, iter_lim=1000000):
     if a >= b:
         a, b = b, a
-    if target.lower() == "min" or target.lower() == "minimum":
+    if target.lower() == 'min' or target.lower() == 'minimum':
         sign = 1.0
-    elif target.lower() == "max" or target.lower() == "maximum":
+    elif target.lower() == 'max' or target.lower() == 'maximum':
         sign = -1.0
     else:
-        raise ValueError("invalid value of \"target_dual\"")
+        raise ValueError('invalid value of "target"')
     multiplier1, multiplier2 = (3.0 - np.sqrt(5)) / 2.0, (np.sqrt(5) - 1.0) / 2.0
     dot1, dot2 = a + multiplier1 * (b - a), a + multiplier2 * (b - a)
     if a_lst is not None:
@@ -67,15 +67,15 @@ def gsection(func, a, b, a_lst=None, b_lst=None, target="min", epsilon=1e-10, it
     return (a + b) / 2.0
 
 
-def fibonacci(func, a, b, a_lst=None, b_lst=None, target="min", epsilon=1e-10, iter_lim=1000000):
+def fibonacci(func, a, b, a_lst=None, b_lst=None, target='min', epsilon=1e-10, iter_lim=1000000):
     if a >= b:
         a, b = b, a
-    if target.lower() == "min" or target.lower() == "minimum":
+    if target.lower() == 'min' or target.lower() == 'minimum':
         sign = 1.0
-    elif target.lower() == "max" or target.lower() == "maximum":
+    elif target.lower() == 'max' or target.lower() == 'maximum':
         sign = -1.0
     else:
-        raise ValueError("invalid value of \"target_dual\"")
+        raise ValueError('invalid value of "target"')
     if a_lst is not None:
         a_lst.append(a)
     if b_lst is not None:
@@ -100,15 +100,15 @@ def fibonacci(func, a, b, a_lst=None, b_lst=None, target="min", epsilon=1e-10, i
     return (a + b) / 2.0
 
 
-def tangent(func, a, b, target="min", epsilon=1e-10, iter_lim=1000000, dx=1e-3):
+def tangent(func, a, b, target='min', epsilon=1e-10, iter_lim=1000000, dx=1e-3):
     if a >= b:
         a, b = b, a
-    if target.lower() == "min" or target.lower() == "minimum":
+    if target.lower() == 'min' or target.lower() == 'minimum':
         sign = 1.0
-    elif target.lower() == "max" or target.lower() == "maximum":
+    elif target.lower() == 'max' or target.lower() == 'maximum':
         sign = -1.0
     else:
-        raise ValueError("invalid value of \"target_dual\"")
+        raise ValueError('invalid value of "target"')
     counter = 0
     while (b - a) / 2.0 > epsilon and counter < iter_lim:
         x = (b * sign * derivative(func, b, dx=dx) - a * sign * derivative(func, a, dx=dx) +
@@ -123,15 +123,15 @@ def tangent(func, a, b, target="min", epsilon=1e-10, iter_lim=1000000, dx=1e-3):
     return (a + b) / 2.0
 
 
-def parabolic(func, a, b, target="min", epsilon=1e-10, iter_lim=1000000):
+def parabolic(func, a, b, target='min', epsilon=1e-10, iter_lim=1000000):
     if a >= b:
         a, b = b, a
-    if target.lower() == "min" or target.lower() == "minimum":
+    if target.lower() == 'min' or target.lower() == 'minimum':
         sign = 1.0
-    elif target.lower() == "max" or target.lower() == "maximum":
+    elif target.lower() == 'max' or target.lower() == 'maximum':
         sign = -1.0
     else:
-        raise ValueError("invalid value of \"target_dual\"")
+        raise ValueError('invalid value of "target_dual"')
     counter = 0
     x0, x1, x2 = a, (a + b) / 2.0, b
     while sign * func(x1) > np.min([sign * func(x0), sign * func(x2)]) and counter < iter_lim:
@@ -158,15 +158,15 @@ def parabolic(func, a, b, target="min", epsilon=1e-10, iter_lim=1000000):
     return res
 
 
-def gauss(func, x0, alpha_a, alpha_b, target="min", epsilon=1e-10, iter_lim=1000000):
-    if target.lower() == "min" or target.lower() == "minimum":
+def gauss(func, x0, alpha_a, alpha_b, target='min', epsilon=1e-10, iter_lim=1000000):
+    if target.lower() == 'min' or target.lower() == 'minimum':
         sign = 1.0
-    elif target.lower() == "max" or target.lower() == "maximum":
+    elif target.lower() == 'max' or target.lower() == 'maximum':
         sign = -1.0
     else:
-        raise ValueError("invalid value of \"target_dual\"")
+        raise ValueError('invalid value of "target_dual"')
     if not (isinstance(x0, np.ndarray) or isinstance(x0, list) or isinstance(x0, float)):
-        raise TypeError("x0 had to be an array")
+        raise TypeError('x0 had to be an array')
     x0 = np.array(x0)
     x_res, counter, tmp_x1, tmp_x2 = x0.copy(), 0, x0.copy(), np.empty_like(x0)
     results = [x0.copy()]
@@ -181,15 +181,15 @@ def gauss(func, x0, alpha_a, alpha_b, target="min", epsilon=1e-10, iter_lim=1000
     return np.array(results)
 
 
-def pattern(func, x0, alpha_a, alpha_b, target="min", epsilon=1e-10, iter_lim=1000000):
-    if target.lower() == "min" or target.lower() == "minimum":
+def pattern(func, x0, alpha_a, alpha_b, target='min', epsilon=1e-10, iter_lim=1000000):
+    if target.lower() == 'min' or target.lower() == 'minimum':
         sign = 1.0
-    elif target.lower() == "max" or target.lower() == "maximum":
+    elif target.lower() == 'max' or target.lower() == 'maximum':
         sign = -1.0
     else:
-        raise ValueError("invalid value of \"target_dual\"")
+        raise ValueError('invalid value of "target"')
     if not (isinstance(x0, np.ndarray) or isinstance(x0, list) or isinstance(x0, float)):
-        raise TypeError("x0 had to be an array")
+        raise TypeError('x0 had to be an array')
     x0 = np.array(x0)
     x_res, counter, tmp_x1, tmp_x2 = x0.copy(), 0, x0.copy(), np.empty_like(x0)
     results = [x0.copy()]
@@ -209,27 +209,27 @@ def pattern(func, x0, alpha_a, alpha_b, target="min", epsilon=1e-10, iter_lim=10
     return np.array(results)
 
 
-def gradient_step_reduction(func, x0, default_step=10, step_red_mult=0.5, grad_epsilon=1e-8, target="min",
+def gradient_step_reduction(func, x0, default_step=10, step_red_mult=0.5, grad_epsilon=1e-8, target='min',
                             epsilon=1e-10, iter_lim=1000000):
-    if target.lower() == "min" or target.lower() == "minimum":
+    if target.lower() == 'min' or target.lower() == 'minimum':
         sign = 1.0
-    elif target.lower() == "max" or target.lower() == "maximum":
+    elif target.lower() == 'max' or target.lower() == 'maximum':
         sign = -1.0
     else:
-        raise ValueError("invalid value of \"target_dual\"")
+        raise ValueError('invalid value of "target"')
     if not (isinstance(x0, np.ndarray) or isinstance(x0, list) or isinstance(x0, float)):
-        raise TypeError("x0 had to be an array")
+        raise TypeError('x0 had to be an array')
     x0 = np.array(x0)
     counter = 0
     x_current, x_next = x0.copy(), x0.copy()
     results = [x0.copy()]
-    # print("alphas")
+    # print('alphas')
     while counter < iter_lim:
         x_current = x_next.copy()
         step = default_step
         while func(x_current - step * middle_grad(x_current, func, epsilon=grad_epsilon)) >= func(x_current):
             step *= step_red_mult
-        # print("%.6f" % step)
+        # print('%.6f' % step)
         x_next = x_current - step * middle_grad(x_current, func, epsilon=grad_epsilon)
         results.append(x_next.copy())
         if np.abs(func(x_next) - func(x_current)) < epsilon:
@@ -1276,7 +1276,7 @@ def x0_input(x0):
 # 2) если return_grads = False, то возвращаемое значение - list всех точек приближения
 def r_algorithm(func, x0, args=None, grad=middle_grad_non_matrix_pool, form='B', beta=0.5, target='min',
                 grad_epsilon=1e-8, calc_epsilon_x=1e-10, calc_epsilon_grad=1e-10, step_epsilon=1e-15, iter_lim=1000000,
-                return_grads=False, tqdm_fl=False, continue_transformation=True, print_iter_index=False, **kwargs):
+                return_grads=False, tqdm_fl=False, continue_transformation=False, print_iter_index=False, **kwargs):
     sign = target_input(target)
     x0 = x0_input(x0)
     step_method_kwargs = {}
@@ -1285,8 +1285,8 @@ def r_algorithm(func, x0, args=None, grad=middle_grad_non_matrix_pool, form='B',
             step_method_kwargs[key] = kwargs.get(key)
     else:
         step_method_kwargs['step_method'] = 'adaptive'
-        step_method_kwargs['default_step'] = 10.0
-        step_method_kwargs['step_red_mult'] = 0.5
+        step_method_kwargs['default_step'] = 1.0
+        step_method_kwargs['step_red_mult'] = 0.8
         step_method_kwargs['step_incr_mult'] = 1.2
         step_method_kwargs['lim_num'] = 3
         step_method_kwargs['reduction_epsilon'] = 1e-15
@@ -1966,6 +1966,24 @@ def tau_transformation_from_vector_to_matrix(tau):
     if len(tau.shape) == 1:
         return tau.reshape(2, -1)
     return tau.T.reshape(tau.shape[1], 2, -1)
+
+
+# Вспомогательная функция
+# Реализует преобразование пары (psi, Y) в один вектор var_max
+def psi_Y_to_var_max(psi, Y):
+    psi, Y = np.array(psi), np.array(Y)
+    if len(psi.shape) != 1 or len(Y.shape) != 2 or psi.size != Y.shape[0]:
+        raise ValueError('Input arguments are invalid!')
+    return np.concatenate((psi.ravel(), Y.ravel()))
+
+
+# Вспомогательная функция
+# Реализует преобразование аргумента var_max в пару (psi, Y)
+def var_max_to_psi_Y(var_max, partition_number):
+    var_max = np.array(var_max)
+    if len(var_max.shape) != 1 or var_max.size % partition_number != 0:
+        raise ValueError('Input argument is invalid!')
+    return var_max[:partition_number], var_max[partition_number:].reshape(partition_number, -1)
 
 
 # Целевой функционал задачи А6
