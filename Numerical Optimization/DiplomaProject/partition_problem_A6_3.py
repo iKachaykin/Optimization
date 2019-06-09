@@ -111,9 +111,9 @@ if __name__ == '__main__':
         nlopt.linear_partition_problem_target_dual_interior_point(psi, tau, args, additional_args),
         psi_initial, nlopt.tau_transformation_from_matrix_to_vector(tau_initial),
         target_1='max', target_2='min', args_1=args, args_2=args,
-        form='H', calc_epsilon_x=1e-4, calc_epsilon_grad=1e-10, iter_lim=1000, print_iter_index=True,
+        form='B', calc_epsilon_x=1e-4, calc_epsilon_grad=1e-10, iter_lim=1000, print_iter_index=True,
         continue_transformation=False, step_epsilon=1e-52, step_method='adaptive',
-        default_step=10.0, step_red_mult=0.65, step_incr_mult=1.25, lim_num=5, reduction_epsilon=1e-15
+        default_step=1.0, step_red_mult=0.65, step_incr_mult=1.25, lim_num=5, reduction_epsilon=1e-15
     )
 
     psi_solution, tau_solution = \

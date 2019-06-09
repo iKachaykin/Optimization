@@ -128,7 +128,7 @@ if __name__ == '__main__':
         in_partition = np.unique(z)
         in_partition = in_partition[in_partition >= 0]
         cf = plt.contour(x_vals, y_vals, z, levels=in_partition, cmap=ListedColormap(['black']))
-        # plt.contour(x_vals, y_vals, density_vector[product](xx_grid, yy_grid), levels=[0.0],
+        # plt.contour(x_plotting, y_plotting, density_vector[product](xx_plotting, yy_plotting), levels=[0.0],
         #             cmap=ListedColormap(['black']))
 
         plt.plot(tau_initial[0, in_partition], tau_initial[1, in_partition], tau_style)
@@ -146,9 +146,9 @@ if __name__ == '__main__':
         nlopt.nonlinear_partition_problem_target_dual_interior_point(var_max, tau, args, additional_args),
         nlopt.psi_Y_to_var_max(psi_initial, Y_initial), nlopt.tau_transformation_from_matrix_to_vector(tau_initial),
         target_1='max', target_2='min', args_1=args, args_2=args,
-        form='H', calc_epsilon_x=1e-4, calc_epsilon_grad=1e-4, iter_lim=1000, print_iter_index=True,
+        form='B', calc_epsilon_x=1e-4, calc_epsilon_grad=1e-4, iter_lim=1000, print_iter_index=True,
         continue_transformation=False, step_epsilon=1e-52, step_method='adaptive',
-        default_step=1.0, step_red_mult=0.1, step_incr_mult=1.25, lim_num=5, reduction_epsilon=1e-15
+        default_step=1.0, step_red_mult=0.9, step_incr_mult=1.15, lim_num=3, reduction_epsilon=1e-15, grad_epsilon=1e-6
     )
 
     var_max_solution, tau_solution = \
@@ -199,7 +199,7 @@ if __name__ == '__main__':
         in_partition = np.unique(z)
         in_partition = in_partition[in_partition >= 0]
         cf = plt.contour(x_vals, y_vals, z, levels=in_partition, cmap=ListedColormap(['black']))
-        # plt.contour(x_vals, y_vals, density_vector[product](xx_grid, yy_grid), levels=[0.0],
+        # plt.contour(x_plotting, y_plotting, density_vector[product](xx_plotting, yy_plotting), levels=[0.0],
         #             cmap=ListedColormap(['black']))
 
         plt.plot(tau_solution[0, in_partition], tau_solution[1, in_partition], tau_style)

@@ -6,7 +6,7 @@ from matplotlib.colors import ListedColormap
 
 if __name__ == '__main__':
 
-    partition_number, product_number = 3, 1
+    partition_number, product_number = 100, 1
 
     x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y = 0.0, 1.0, 0.0, 1.0, 100, 100
 
@@ -27,10 +27,10 @@ if __name__ == '__main__':
 
     psi_initial = np.zeros(partition_number)
 
-    tau_initial = np.zeros((2, partition_number))
+    tau_initial = np.zeros((2, partition_number)) + 0.01
 
-    tau_initial[0] = np.random.rand(partition_number) * (x_right - x_left) + x_left
-    tau_initial[1] = np.random.rand(partition_number) * (y_right - y_left) + y_left
+    # tau_initial[0] = np.random.rand(partition_number) * (x_right - x_left) + x_left
+    # tau_initial[1] = np.random.rand(partition_number) * (y_right - y_left) + y_left
 
     psi_penalty, tau_penalty = 1.0, 100000.0
     psi_limitations_inds = np.arange(partition_number)

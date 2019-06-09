@@ -84,7 +84,7 @@ if __name__ == '__main__':
         in_partition = np.unique(z)
         in_partition = in_partition[in_partition >= 0]
         cf = plt.contour(x_vals, y_vals, z, levels=in_partition, cmap=ListedColormap(['black']))
-        # plt.contour(x_vals, y_vals, density_vector[product](xx_grid, yy_grid), levels=[0.0],
+        # plt.contour(x_plotting, y_plotting, density_vector[product](xx_plotting, yy_plotting), levels=[0.0],
         #             cmap=ListedColormap(['black']))
 
         plt.plot(tau_initial[0, in_partition], tau_initial[1, in_partition], tau_style)
@@ -125,7 +125,7 @@ if __name__ == '__main__':
         in_partition = np.unique(z)
         in_partition = in_partition[in_partition >= 0]
         cf = plt.contour(x_vals, y_vals, z, levels=in_partition, cmap=ListedColormap(['black']))
-        # plt.contour(x_vals, y_vals, density_vector[product](xx_grid, yy_grid), levels=[0.0],
+        # plt.contour(x_plotting, y_plotting, density_vector[product](xx_plotting, yy_plotting), levels=[0.0],
         #             cmap=ListedColormap(['black']))
 
         plt.plot(tau_solution[0, in_partition], tau_solution[1, in_partition], tau_style)

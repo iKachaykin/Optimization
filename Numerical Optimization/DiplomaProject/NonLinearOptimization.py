@@ -460,6 +460,8 @@ def step_adaptive(kwargs):
     step = default_step
     while reduction_epsilon >= func(x_current) - func(x_current - step * direction) and np.abs(step) > step_epsilon:
         step *= step_red_mult
+    if np.abs(step) < step_epsilon:
+        step = default_step
     break_flag = 0
     tmp_step, step = step, 0.0
     while True:
@@ -479,7 +481,7 @@ def step_adaptive(kwargs):
         tmp_step *= step_incr_mult
         x_next = x_current - step * direction
         grad_next = grad(x_next, func, grad_epsilon)
-        if np.dot(x_next - x_current, grad_next) > 0:
+        if np.dot(x_next - x_current, grad_next) >= 0:
             break
     if break_flag == 2:
         tmp_step /= step_incr_mult
@@ -783,6 +785,9 @@ def r_algorithm_B_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
 
         if print_iter_index:
             print(k)
+            print(x_1_next)
+            print(x_2_next)
+            print('Вычисление шага №1')
 
         xi_1_current = np.dot(matrix_B_1.T, grad_1_next)
         xi_1_current = xi_1_current / linalg.norm(xi_1_current)
@@ -798,6 +803,9 @@ def r_algorithm_B_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
         if 'default_step' in step_method_kwargs:
             step_method_kwargs['default_step'] = default_step_1
         step_1_current = (step_defining_algorithms.get(step_method))(step_method_kwargs)
+
+        if print_iter_index:
+            print('Вычисление шага №2')
 
         step_method_kwargs['func'] = lambda x: func_2(x_1_next, x)
         step_method_kwargs['grad'] = grad_2
@@ -821,12 +829,18 @@ def r_algorithm_B_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
             matrix_B_2 = matrix_B_transformation(matrix_B_2, grad_2_current, grad_2_next, beta)
             continue
 
+        if print_iter_index:
+            print('Вычисление приближения №1')
+
         if np.abs(step_1_current) < 1e-51:
             step_1_current_zero = True
         else:
             x_1_current, grad_1_current = x_1_next.copy(), grad_1_next.copy()
             x_1_next = x_1_current - step_1_current * np.dot(matrix_B_1, xi_1_current)
         results_1.append(x_1_next.copy())
+
+        if print_iter_index:
+            print('Вычисление приближения №2')
 
         if np.abs(step_2_current) < 1e-51:
             step_2_current_zero = True
@@ -835,8 +849,14 @@ def r_algorithm_B_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
             x_2_next = x_2_current - step_2_current * np.dot(matrix_B_2, xi_2_current)
         results_2.append(x_2_next.copy())
 
+        if print_iter_index:
+            print('Вычисление градиента №1')
+
         grad_1_next = grad_1(x_1_next, lambda x: func_1(x, x_2_next), epsilon=grad_epsilon)
         grads_1.append(grad_1_next.copy())
+
+        if print_iter_index:
+            print('Вычисление градиента №2')
 
         grad_2_next = grad_2(x_2_next, lambda x: func_2(x_1_next, x), epsilon=grad_epsilon)
         grads_2.append(grad_2_next.copy())
@@ -846,6 +866,10 @@ def r_algorithm_B_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
            linalg.norm(np.concatenate((grad_1_next, grad_2_next))) < calc_epsilon_grad or \
                 (step_1_current_zero and step_2_current_zero):
             break
+
+        if print_iter_index:
+            print('Преобразование матриц')
+
         matrix_B_1 = matrix_B_transformation(matrix_B_1, grad_1_current, grad_1_next, beta)
         matrix_B_2 = matrix_B_transformation(matrix_B_2, grad_2_current, grad_2_next, beta)
 
@@ -1867,6 +1891,30 @@ def trapezoid_double(integrand, x_a, x_b, y_a, y_b, grid_dot_num_x=10, grid_dot_
             integrand_vals[:grid_dot_num_y, 1:].sum() + integrand_vals[1:, 1:].sum())
 
 
+# Функция вычисляющая двойной интеграл методом трапеций в случае заданной сетки значений функции
+def trapezoid_double_on_grid(integrand_grid, x_a, x_b, y_a, y_b):
+    grid_dot_num_x, grid_dot_num_y = integrand_grid.shape[1] - 1, integrand_grid.shape[0] - 1
+    return (x_b - x_a) * (y_b - y_a) / 4 / grid_dot_num_x / grid_dot_num_y * \
+           (integrand_grid[:grid_dot_num_y, :grid_dot_num_x].sum() + integrand_grid[1:, :grid_dot_num_x].sum() +
+            integrand_grid[:grid_dot_num_y, 1:].sum() + integrand_grid[1:, 1:].sum())
+
+
+# Функция вычисляющая двойной интеграл методом трапеций в случае заданных сеток значений функций
+def trapezoid_double_on_grid_array(integrand_grid, x_a, x_b, y_a, y_b):
+    grid_dot_num_x, grid_dot_num_y = integrand_grid.shape[2] - 1, integrand_grid.shape[1] - 1
+    return (x_b - x_a) * (y_b - y_a) / 4 / grid_dot_num_x / grid_dot_num_y * \
+           (integrand_grid[:, :grid_dot_num_y, :grid_dot_num_x] + integrand_grid[:, 1:, :grid_dot_num_x] +
+            integrand_grid[:, :grid_dot_num_y, 1:] + integrand_grid[:, 1:, 1:]).sum(axis=2).sum(axis=1)
+
+
+# Функция вычисляющая двойной интеграл методом трапеций в случае заданной матрицы сеток значений функций
+def trapezoid_double_on_grid_matrix(integrand_grid, x_a, x_b, y_a, y_b):
+    grid_dot_num_x, grid_dot_num_y = integrand_grid.shape[3] - 1, integrand_grid.shape[2] - 1
+    return (x_b - x_a) * (y_b - y_a) / 4 / grid_dot_num_x / grid_dot_num_y * \
+           (integrand_grid[:, :, :grid_dot_num_y, :grid_dot_num_x] + integrand_grid[:, :, 1:, :grid_dot_num_x] +
+            integrand_grid[:, :, :grid_dot_num_y, 1:] + integrand_grid[:, :, 1:, 1:]).sum(axis=3).sum(axis=2)
+
+
 # Функция вычисляющая двойной интеграл методом трапеций (вариант с циклами)
 def trapezoid_double_loop(integrand, x_a, x_b, y_a, y_b, grid_dot_num_x=10, grid_dot_num_y=10):
     sum = 0.0
@@ -1918,22 +1966,6 @@ def tau_transformation_from_vector_to_matrix(tau):
     if len(tau.shape) == 1:
         return tau.reshape(2, -1)
     return tau.T.reshape(tau.shape[1], 2, -1)
-
-
-# Вспомогательная функция
-# Реализует преобразование пары (psi, Y) в один вектор var_max
-def psi_Y_to_var_max(psi, Y):
-    if len(psi.shape) != 1 or len(Y.shape) != 2 or psi.size != Y.shape[0]:
-        raise ValueError('Input arguments are invalid!')
-    return np.concatenate((psi.ravel(), Y.ravel()))
-
-
-# Вспомогательная функция
-# Реализует преобразование пары var_max в пару (psi, Y)
-def var_max_to_psi_Y(var_max, partition_number):
-    if len(var_max.shape) != 1 or var_max.size % partition_number != 0:
-        raise ValueError('Input argument is invalid!')
-    return var_max[:partition_number], var_max[partition_number:].reshape(partition_number, -1)
 
 
 # Целевой функционал задачи А6

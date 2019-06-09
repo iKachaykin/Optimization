@@ -17,19 +17,27 @@ def f(x, args):
         return 1 / 2 * np.dot(np.dot(a, x), x) - np.dot(b, x) + c
 
 
+def grad_f(x, f, eps, args):
+    a, b, c = args
+    return 1 / 2 * np.dot(a + a.T, x) - b
+
+
 def main():
     conn = psycopg2.connect('dbname=optimization user=postgres password=postgres_ivan')
     cur = conn.cursor()
-    dimension_number, exp_number = 5, 100000
+    dimension_number, exp_number = 5, 10000
     avg, result_satisf_num = 0.0, 0
     not_so_bad_eps, very_bad_eps, very_bad_a, very_bad_b, very_bad_x_exact, very_bad_x_numerical = \
         [], [], [], [], [], []
     square_delta = 10
     x0, uniform_distr_low, uniform_distr_high, calc_epsilon = \
-        np.zeros(dimension_number), -5, 5, 1e-7
+        np.zeros(dimension_number), -5, 5, 1e-6
     a, b, c = \
         rand(dimension_number, dimension_number) * (uniform_distr_high - uniform_distr_low) + uniform_distr_low, \
         rand(dimension_number) * (uniform_distr_high - uniform_distr_low) + uniform_distr_low, 0
+
+    abs_err, rel_err, iters = np.zeros(exp_number), np.zeros(exp_number), np.zeros(exp_number)
+
     tqdm.monitor_interval = 0
     for j in tqdm(range(exp_number)):
         b = rand(dimension_number) * (uniform_distr_high - uniform_distr_low) + uniform_distr_low
@@ -46,11 +54,13 @@ def main():
                 break
         exact_solution = linalg.solve(hessian_of_f, b)
         x0 = rand(dimension_number) * 2 * square_delta + (x0 - square_delta)
-        points_seq = r_algorithm(f, x0, args=(a, b, c), form='B', calc_epsilon=calc_epsilon, iter_lim=100,
-                                step_method='adaptive', default_step=10, step_red_mult=0.75, step_incr_mult=1.25,
-                                lim_num=3, reduction_epsilon=1e-15)
+        points_seq = r_algorithm(f, x0, args=(a, b, c), grad=lambda x, f, epsilon: grad_f(x, f, epsilon, (a, b, c)), form='B',
+                                 calc_epsilon_x=calc_epsilon, iter_lim=1000, step_method='adaptive', default_step=1.0,
+                                 step_red_mult=0.9, step_incr_mult=1.1, lim_num=3, reduction_epsilon=1e-15)
         argmin = points_seq[points_seq.shape[0] - 1]
-        error = linalg.norm(exact_solution - argmin)
+        abs_err[j] = linalg.norm(exact_solution - argmin)
+        rel_err[j] = error = linalg.norm(exact_solution - argmin) / linalg.norm(argmin)
+        iters[j] = points_seq.shape[0]
         norm_exact = linalg.norm(exact_solution)
         norm_numerical = linalg.norm(argmin)
         if error < 1000 * calc_epsilon:
@@ -70,6 +80,12 @@ def main():
         cur.execute('insert into numerical_results(eps, det, iter, point_class, norm_exact, norm_numerical) '
                     'values (%.15f, %.15f, %d, %d, %.15f, %.15f)' %
                     (error, minor, points_seq.shape[0] - 1, point_class, norm_exact, norm_numerical))
+    print('abs_err:\navg: %.16f\nstd: %.16f\nmax: %.16f\nmedian: %.16f' %
+          (abs_err.mean(), abs_err.std(), abs_err.max(), float(np.median(abs_err))))
+    print('rel_err:\navg: %.16f\nstd: %.16f\nmax: %.16f\nmedian: %.16f' %
+          (rel_err.mean(), rel_err.std(), rel_err.max(), float(np.median(rel_err))))
+    print('iters:\navg: %f\nstd: %f\nmax: %d\nmedian: %.16f' %
+          (iters.mean(), iters.std(), iters.max(), float(np.median(iters))))
     not_so_bad_eps = np.array(not_so_bad_eps)
     avg = avg * (exp_number / result_satisf_num)
     print('Number of absolutely success cases: %d' % result_satisf_num)
