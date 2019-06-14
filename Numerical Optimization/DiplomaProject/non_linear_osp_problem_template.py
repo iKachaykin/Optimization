@@ -13,7 +13,11 @@ def cost_function(xx, yy, tau, partition_number, product_number):
 
     temp_cost = np.array([
         np.sqrt((xx_array - tau[0].reshape(partition_number, 1, 1)) ** 2 +
-                (yy_array - tau[1].reshape(partition_number, 1, 1)) ** 2)
+                (yy_array - tau[1].reshape(partition_number, 1, 1)) ** 2),
+        np.maximum(np.abs(xx_array - tau[0].reshape(partition_number, 1, 1)),
+                   np.abs(yy_array - tau[1].reshape(partition_number, 1, 1))),
+        np.abs(xx_array - tau[0].reshape(partition_number, 1, 1)) +
+        np.abs(yy_array - tau[1].reshape(partition_number, 1, 1))
     ])
 
     return np.transpose(temp_cost, axes=(1, 0, 2, 3))
@@ -33,6 +37,24 @@ def cost_function_der(xx, yy, tau, partition_number, product_number):
             -(yy_array - tau[1].reshape(partition_number, 1, 1)) /
             np.sqrt((xx_array - tau[0].reshape(partition_number, 1, 1)) ** 2 +
                     (yy_array - tau[1].reshape(partition_number, 1, 1)) ** 2)
+        ],
+        [
+            np.where(
+                np.abs(xx_array - tau[0].reshape(partition_number, 1, 1)) >=
+                np.abs(yy_array - tau[1].reshape(partition_number, 1, 1)),
+                -np.sign(xx_array - tau[0].reshape(partition_number, 1, 1)),
+                0.0
+            ),
+            np.where(
+                np.abs(xx_array - tau[0].reshape(partition_number, 1, 1)) >=
+                np.abs(yy_array - tau[1].reshape(partition_number, 1, 1)),
+                0.0,
+                -np.sign(yy_array - tau[1].reshape(partition_number, 1, 1))
+            )
+        ],
+        [
+            -np.sign(xx_array - tau[0].reshape(partition_number, 1, 1)),
+            -np.sign(yy_array - tau[1].reshape(partition_number, 1, 1))
         ]
     ])
 
@@ -42,7 +64,9 @@ def cost_function_der(xx, yy, tau, partition_number, product_number):
 def density_function(xx, yy, product_number):
 
     return np.array([
-        np.where((xx - 3.0) ** 2 / 9.0 + (yy - 10.0) ** 2 / 100.0 <= 1, 1.0, 0.0)
+        1 / np.log(np.abs((xx - yy) ** 1 - 110.003)),
+        1 / np.log(np.abs((xx - yy) ** 2 - 110.003)),
+        1 / np.log(np.abs((xx - yy) ** 3 - 110.003))
     ])
 
 
@@ -50,77 +74,72 @@ def indicators(xx, yy, Y, psi, tau, partition_number, product_number):
 
     cost = cost_function(xx, yy, tau, partition_number, product_number)
     indicators = np.where(
-        cost + psi.reshape(partition_number, 1, 1, 1) + phi_der(Y, A).reshape(partition_number, product_number, 1, 1) ==
-        (cost + psi.reshape(partition_number, 1, 1, 1) + phi_der(Y, A).reshape(partition_number, product_number, 1, 1)
+        cost + psi.reshape(partition_number, 1, 1, 1) + phi_der(Y).reshape(partition_number, product_number, 1, 1) ==
+        (cost + psi.reshape(partition_number, 1, 1, 1) + phi_der(Y).reshape(partition_number, product_number, 1, 1)
          ).min(axis=0), 1.0, 0.0
     )
     return indicators
 
 
 def omega_constraints(xx, yy):
-    return np.where((xx - 3.0) ** 2 / 9.0 + (yy - 10.0) ** 2 / 100.0 <= 1, 1.0, 0.0)
+    return (np.ones_like(xx) + np.ones_like(yy)) / 2.0
 
 
-def tau_constraints(tau):
+def tau_constraints(tau, x_left, x_right, y_left, y_right):
     return np.array([
-        (tau[0] - 3.0) ** 2 / 9.0 + (tau[1] - 10.0) ** 2 / 100.0 - 1.0
+        x_left - tau[0],
+        tau[0] - x_right,
+        y_left - tau[1],
+        tau[1] - y_right
     ]).T
 
 
 def tau_constraints_der(tau):
 
     temp_der = np.array([
-        [2.0 * (tau[0] - 3.0) / 9.0, 2.0 * (tau[1] - 10.0) / 100.0],
+        [-1.0 + tau[0] - tau[0], 0.0 + tau[1] - tau[1]],
+        [1.0 + tau[0] - tau[0], 0.0 + tau[1] - tau[1]],
+        [0.0 + tau[0] - tau[0], -1.0 + tau[1] - tau[1]],
+        [0.0 + tau[0] - tau[0], 1.0 + tau[1] - tau[1]]
     ])
 
     return np.transpose(temp_der, axes=(1, 2, 0))
 
 
-def phi(Y, A):
-    return A * Y
+def phi(Y):
+    return Y ** 2
 
 
-def phi_der(Y, A):
-    return A
+def phi_der(Y):
+    return 2 * Y
 
 
 def phi_second_der(Y):
-    return Y - Y
+    return 2.0 + (Y - Y)
 
 
 if __name__ == '__main__':
 
-    partition_number, product_number = 9, 1
+    partition_number, product_number = 9, 3
 
-    x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y = 0.0, 6.0, 0.0, 20.0, 120, 400
+    x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y = 0.0, 10.0, 0.0, 10.0, 200, 200
 
-    b_vector = np.array([75.0, 10.0, 10.0, 10.0, 30.0, 10.0, 10.0, 10.0, 19.0])
-    A = np.array([[0.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 0.0]]).T
+    b_vector = np.array([100.0, 86.0, 36.0, 80.0, 17.0, 5.0, 100.0, 15.0, 25.0])
 
-    psi_initial = np.zeros(partition_number) + 0.0
-    psi_initial = np.random.rand(partition_number) * 3
-    tau_initial = np.zeros((2, partition_number)) + 0.001
-    Y_initial = np.zeros((partition_number, product_number)) + 0.0
+    psi_initial = np.zeros(partition_number) + 0.01
+    tau_initial = np.zeros((2, partition_number)) + 0.01
+    Y_initial = np.zeros((partition_number, product_number)) + 0.01
 
     var_max_initial, var_min_initial = osp.psi_Y_to_var_max(psi_initial, Y_initial), osp.tau_to_var_min(tau_initial)
 
-    tau_initial[0] = np.random.rand(partition_number) * (x_right - x_left) + x_left
-    tau_initial[1] = np.random.rand(partition_number) * (y_right - y_left) + y_left
-
-    # Y_initial = np.array([
-    #     [10, 100, 10, 10, 100, 10, 10, 100, 10],
-    #     [10, 100, 10, 10, 100, 10, 10, 100, 10],
-    #     [10, 100, 10, 10, 100, 10, 10, 100, 10]
-    # ]).T
-
     Y_penalty_left, Y_penalty_right, psi_penalty, tau_penalty = 100000.0, 100000.0, 100000.0, 100000.0
-    psi_constraints_indexes = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8])
+    psi_constraints_indexes = np.array([0, 1, 3, 4, 6, 8])
 
-    args = (partition_number, product_number, cost_function, density_function, lambda Y: phi(Y, A),
-            lambda Y: phi_der(Y, A), b_vector, x_left, x_right, y_left, y_right, grid_dot_num_x, grid_dot_num_y)
+    args = (partition_number, product_number, cost_function, density_function, phi, phi_der, b_vector, x_left, x_right,
+            y_left, y_right, grid_dot_num_x, grid_dot_num_y)
 
     additional_args = (Y_penalty_left, Y_penalty_right, psi_penalty, tau_penalty, psi_constraints_indexes,
-                       tau_constraints)
+                       lambda tau: tau_constraints(tau, x_left, x_right, y_left, y_right))
 
     grad_args = (phi_second_der, cost_function_der, tau_constraints_der)
 
@@ -132,8 +151,8 @@ if __name__ == '__main__':
         Y_initial, psi_initial, tau_initial, target_val_initial, dual_target_val_initial)
     )
 
-    scale_coeff = 0.38
-    frame_x, frame_y = 1.0, 0.0
+    scale_coeff = 0.7
+    frame_x, frame_y = 0.0, 0.0
     figsize = (scale_coeff * (x_right - x_left) + frame_x, scale_coeff * (y_right - y_left) + frame_y)
     grid_dot_num_x_plotting, grid_dot_num_y_plotting = 1000, 1000
     tau_style, boundary_style = 'ko', 'k-'
@@ -151,7 +170,7 @@ if __name__ == '__main__':
 
     for product in range(product_number):
         plt.figure(product, figsize=figsize)
-        plt.title('Изначальное разбиение\nдля %i-го продукта' % (product + 1))
+        # plt.title('Изначальное разбиение для %i-го продукта' % (product + 1))
         plt.grid(True)
         plt.axis([x_left, x_right, y_left, y_right])
         plt.contour(x_plotting, y_plotting, omega_constraints(xx_plotting, yy_plotting), levels=[1.0],
@@ -186,8 +205,8 @@ if __name__ == '__main__':
         grad_2=lambda var_max, var_min, func, epsilon:
         osp.nonlinear_set_partitioning_target_dual_with_penalties_grad_var_min(
             var_max, var_min, func, epsilon, args, additional_args, grad_args),
-        form='B', beta=1/2, calc_epsilon_x=1e-7, calc_epsilon_grad=1e-7, iter_lim=1000, print_iter_index=True,
-        continue_transformation=False, step_epsilon=1e-52, step_method='adaptive',
+        form='B', beta=1/2, calc_epsilon_x=1e-4, calc_epsilon_grad=1e-4, iter_lim=1000, print_iter_index=True,
+        continue_transformation=False, step_epsilon=1e-5, step_method='adaptive',
         default_step=1.0, step_red_mult=0.9, step_incr_mult=1.15, lim_num=3, reduction_epsilon=1e-15, grad_epsilon=1e-6
     )
 
@@ -209,7 +228,7 @@ if __name__ == '__main__':
 
     for product in range(product_number):
         plt.figure(product + product_number, figsize=figsize)
-        plt.title('Оптимальное разбиение\nдля %i-го продукта' % (product + 1))
+        # plt.title('Оптимальное разбиение для %i-го продукта' % (product + 1))
         plt.grid(True)
         plt.axis([x_left, x_right, y_left, y_right])
         plt.contour(x_plotting, y_plotting, omega_constraints(xx_plotting, yy_plotting), levels=[1.0],

@@ -5,7 +5,7 @@ from scipy.misc import derivative
 from math import isnan
 from tqdm import tqdm as tqdm
 from multiprocessing import cpu_count
-from multiprocessing.dummy import Pool as ThreadPool
+from multiprocessing.dummy import Pool as Pool
 from numpy.polynomial import legendre as leg
 
 
@@ -315,7 +315,7 @@ def middle_grad_non_matrix(x0, func, epsilon=1e-6):
 # между правосторонними и левосторонними частными производными
 # Распараллеленная версия функции middle_grad_non_matrix
 def middle_grad_non_matrix_pool(x0, func, epsilon=1e-6):
-    pool = ThreadPool(np.minimum(x0.size, cpu_count()))
+    pool = Pool(np.minimum(x0.size, cpu_count()))
     args_lst = [(i, x0, func, epsilon) for i in range(x0.size)]
     gradient = pool.map(partial_derivative, args_lst)
     pool.close()
@@ -327,6 +327,36 @@ def partial_derivative(args):
     i, x0, func, epsilon = args
     unit_m = np.eye(x0.size, x0.size)
     return (func(x0 + epsilon * unit_m[i]) - func(x0 - epsilon * unit_m[i])) / 2 / epsilon
+
+
+def middle_grad_arg_1_pool(x0_1, x0_2, func, epsilon=1e-6):
+    pool = Pool(np.minimum(x0_1.size, cpu_count()))
+    args_lst = [(i, x0_1, x0_2, func, epsilon) for i in range(x0_1.size)]
+    gradient = pool.map(partial_derivative_arg_1, args_lst)
+    pool.close()
+    pool.join()
+    return np.array(gradient)
+
+
+def partial_derivative_arg_1(args):
+    i, x0_1, x0_2, func, epsilon = args
+    unit_m = np.eye(x0_1.size, x0_1.size)
+    return (func(x0_1 + epsilon * unit_m[i], x0_2) - func(x0_1 - epsilon * unit_m[i], x0_2)) / 2 / epsilon
+
+
+def middle_grad_arg_2_pool(x0_1, x0_2, func, epsilon=1e-6):
+    pool = Pool(np.minimum(x0_2.size, cpu_count()))
+    args_lst = [(i, x0_1, x0_2, func, epsilon) for i in range(x0_2.size)]
+    gradient = pool.map(partial_derivative_arg_2, args_lst)
+    pool.close()
+    pool.join()
+    return np.array(gradient)
+
+
+def partial_derivative_arg_2(args):
+    i, x0_1, x0_2, func, epsilon = args
+    unit_m = np.eye(x0_2.size, x0_2.size)
+    return (func(x0_1, x0_2 + epsilon * unit_m[i]) - func(x0_1, x0_2 - epsilon * unit_m[i])) / 2 / epsilon
 
 
 def reduced_gradient_Wolfe(func, x0, A, grad=middle_grad, grad_epsilon=1e-8, target="min", calc_epsilon=1e-10,
@@ -461,7 +491,7 @@ def step_adaptive(kwargs):
     while reduction_epsilon >= func(x_current) - func(x_current - step * direction) and np.abs(step) > step_epsilon:
         step *= step_red_mult
     if np.abs(step) < step_epsilon:
-        step = default_step
+        step = step_epsilon
     break_flag = 0
     tmp_step, step = step, 0.0
     while True:
@@ -485,6 +515,8 @@ def step_adaptive(kwargs):
             break
     if break_flag == 2:
         tmp_step /= step_incr_mult
+    if np.abs(step) < step_epsilon:
+        step = step_epsilon
     return step, tmp_step
 
 
@@ -753,10 +785,10 @@ def r_algorithm_B_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
 
     x_1_current, x_1_next, matrix_B_1, grad_1_current, grad_1_next = \
         x0_1.copy(), x0_1.copy(), np.eye(x0_1.size, x0_1.size), np.random.rand(x0_1.size),\
-        grad_1(x0_1, lambda x: func_1(x, x0_2), epsilon=grad_epsilon)
+        grad_1(x0_1, x0_2, func_1, epsilon=grad_epsilon)
     x_2_current, x_2_next, matrix_B_2, grad_2_current, grad_2_next = \
         x0_2.copy(), x0_2.copy(), np.eye(x0_2.size, x0_2.size), np.random.rand(x0_2.size),\
-        grad_2(x0_2, lambda x: func_2(x0_1, x), epsilon=grad_epsilon)
+        grad_2(x0_1, x0_2, func_2, epsilon=grad_epsilon)
 
     step_defining_algorithms = {'argmin': step_argmin, 'func': step_func, 'reduction': step_reduction,
                                 'adaptive': step_adaptive, 'adaptive_alternative': step_adaptive_alternative}
@@ -796,7 +828,7 @@ def r_algorithm_B_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
         xi_2_current = xi_2_current / linalg.norm(xi_2_current)
 
         step_method_kwargs['func'] = lambda x: func_1(x, x_2_next)
-        step_method_kwargs['grad'] = grad_1
+        step_method_kwargs['grad'] = lambda x0, func, epsilon: grad_1(x0, x_2_next, func_1, epsilon)
         step_method_kwargs['x_current'] = x_1_next
         step_method_kwargs['direction'] = np.dot(matrix_B_1, xi_1_current)
         step_method_kwargs['step_index'] = k
@@ -808,7 +840,7 @@ def r_algorithm_B_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
             print('Вычисление шага №2')
 
         step_method_kwargs['func'] = lambda x: func_2(x_1_next, x)
-        step_method_kwargs['grad'] = grad_2
+        step_method_kwargs['grad'] = lambda x0, func, epsilon: grad_2(x_1_next, x0, func_2, epsilon)
         step_method_kwargs['x_current'] = x_2_next
         step_method_kwargs['direction'] = np.dot(matrix_B_2, xi_2_current)
         step_method_kwargs['step_index'] = k
@@ -852,13 +884,13 @@ def r_algorithm_B_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
         if print_iter_index:
             print('Вычисление градиента №1')
 
-        grad_1_next = grad_1(x_1_next, lambda x: func_1(x, x_2_next), epsilon=grad_epsilon)
+        grad_1_next = grad_1(x_1_next, x_2_next, func_1, epsilon=grad_epsilon)
         grads_1.append(grad_1_next.copy())
 
         if print_iter_index:
             print('Вычисление градиента №2')
 
-        grad_2_next = grad_2(x_2_next, lambda x: func_2(x_1_next, x), epsilon=grad_epsilon)
+        grad_2_next = grad_2(x_1_next, x_2_next, func_2, epsilon=grad_epsilon)
         grads_2.append(grad_2_next.copy())
 
         if linalg.norm(np.concatenate((x_1_next, x_2_next)) -
@@ -1083,11 +1115,11 @@ def r_algorithm_H_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
 
     x_1_current, x_1_next, matrix_H_1, grad_1_current, grad_1_next = \
         x0_1.copy(), x0_1.copy(), np.eye(x0_1.size, x0_1.size), np.random.rand(x0_1.size),\
-        grad_1(x0_1, lambda x: func_1(x, x0_2), epsilon=grad_epsilon)
+        grad_1(x0_1, x0_2, func_1, epsilon=grad_epsilon)
 
     x_2_current, x_2_next, matrix_H_2, grad_2_current, grad_2_next = \
         x0_2.copy(), x0_2.copy(), np.eye(x0_2.size, x0_2.size), np.random.rand(x0_2.size),\
-        grad_2(x0_2, lambda x: func_2(x0_1, x), epsilon=grad_epsilon)
+        grad_2(x0_1, x0_2, func_2, epsilon=grad_epsilon)
 
     step_defining_algorithms = {'argmin': step_argmin, 'func': step_func, 'reduction': step_reduction,
                                 'adaptive': step_adaptive, 'adaptive_alternative': step_adaptive_alternative}
@@ -1121,7 +1153,7 @@ def r_algorithm_H_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
             print('Вычисление шага №1')
 
         step_method_kwargs['func'] = lambda x: func_1(x, x_2_next)
-        step_method_kwargs['grad'] = grad_1
+        step_method_kwargs['grad'] = lambda x0, func, epsilon: grad_1(x0, x_2_next, func_1, epsilon)
         step_method_kwargs['x_current'] = x_1_next
         step_method_kwargs['direction'] = np.dot(matrix_H_1, grad_1_next) / \
                                           np.sqrt(np.dot(np.dot(matrix_H_1, grad_1_next), grad_1_next))
@@ -1134,7 +1166,7 @@ def r_algorithm_H_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
             print('Вычисление шага №2')
 
         step_method_kwargs['func'] = lambda x: func_2(x_1_next, x)
-        step_method_kwargs['grad'] = grad_2
+        step_method_kwargs['grad'] = lambda x0, func, epsilon: grad_2(x_1_next, x0, func_2, epsilon)
         step_method_kwargs['x_current'] = x_2_next
         step_method_kwargs['direction'] = np.dot(matrix_H_2, grad_2_next) / \
                                           np.sqrt(np.dot(np.dot(matrix_H_2, grad_2_next), grad_2_next))
@@ -1181,13 +1213,13 @@ def r_algorithm_H_form_cooperative(func_1, func_2, x0_1, x0_2, grad_1, grad_2, b
         if print_iter_index:
             print('Вычисление градиента №1')
 
-        grad_1_next = grad_1(x_1_next, lambda x: func_1(x, x_2_next), epsilon=grad_epsilon)
+        grad_1_next = grad_1(x_1_next, x_2_next, func_1, epsilon=grad_epsilon)
         grads_1.append(grad_1_next.copy())
 
         if print_iter_index:
             print('Вычисление градиента №2')
 
-        grad_2_next = grad_2(x_2_next, lambda x: func_2(x_1_next, x), epsilon=grad_epsilon)
+        grad_2_next = grad_2(x_1_next, x_2_next, func_2, epsilon=grad_epsilon)
         grads_2.append(grad_2_next.copy())
 
         if linalg.norm(np.concatenate((x_1_next, x_2_next)) -
@@ -1355,8 +1387,8 @@ def r_algorithm_double(func_1, func_2, x0_1, x0_2, args_1=None, args_2=None, gra
                                          continue_transformation, print_iter_index)
 
 
-def r_algorithm_cooperative(func_1, func_2, x0_1, x0_2, args_1=None, args_2=None, grad_1=middle_grad_non_matrix_pool,
-                            grad_2=middle_grad_non_matrix_pool, form='B', beta=0.5, target_1='min', target_2='min',
+def r_algorithm_cooperative(func_1, func_2, x0_1, x0_2, args_1=None, args_2=None, grad_1=middle_grad_arg_1_pool,
+                            grad_2=middle_grad_arg_2_pool, form='B', beta=0.5, target_1='min', target_2='min',
                             grad_epsilon=1e-8, calc_epsilon_x=1e-10, calc_epsilon_grad=1e-10, step_epsilon=1e-15,
                             iter_lim=1000000, return_grads=False, tqdm_fl=False, continue_transformation=True,
                             print_iter_index=False, **kwargs):
@@ -1913,6 +1945,14 @@ def trapezoid_double_on_grid_matrix(integrand_grid, x_a, x_b, y_a, y_b):
     return (x_b - x_a) * (y_b - y_a) / 4 / grid_dot_num_x / grid_dot_num_y * \
            (integrand_grid[:, :, :grid_dot_num_y, :grid_dot_num_x] + integrand_grid[:, :, 1:, :grid_dot_num_x] +
             integrand_grid[:, :, :grid_dot_num_y, 1:] + integrand_grid[:, :, 1:, 1:]).sum(axis=3).sum(axis=2)
+
+
+# Функция вычисляющая двойной интеграл методом трапеций в случае заданного трехмерного массива сеток значений функций
+def trapezoid_double_on_grid_3d_array(integrand_grid, x_a, x_b, y_a, y_b):
+    grid_dot_num_x, grid_dot_num_y = integrand_grid.shape[4] - 1, integrand_grid.shape[3] - 1
+    return (x_b - x_a) * (y_b - y_a) / 4 / grid_dot_num_x / grid_dot_num_y * \
+           (integrand_grid[:, :, :, :grid_dot_num_y, :grid_dot_num_x] + integrand_grid[:, :, :, 1:, :grid_dot_num_x] +
+            integrand_grid[:, :, :, :grid_dot_num_y, 1:] + integrand_grid[:, :, :, 1:, 1:]).sum(axis=4).sum(axis=3)
 
 
 # Функция вычисляющая двойной интеграл методом трапеций (вариант с циклами)
